@@ -53,7 +53,7 @@ string_type_test() ->
     ?assertError({value, name}, e2_opt:validate([{name, stan}], Schema)).
 
 bad_type_test() ->
-    ?assertError({option, type},
+    ?assertError({badarg, type},
                  e2_opt:validate([], [{foo, [{type, widget}]}])).
 
 values_test() ->
@@ -65,7 +65,7 @@ values_test() ->
     ?assertError({value, gender}, e2_opt:validate([{gender, other}], Schema)).
 
 bad_values_test() ->
-    ?assertError({option, values},
+    ?assertError({badarg, values},
                  e2_opt:validate([], [{foo, [{values, bad_list}]}])).
 
 min_test() ->
@@ -104,12 +104,30 @@ pattern_test() ->
     ?assertError({value, email}, e2_opt:validate([{email, "dude"}], Schema)).
 
 bad_pattern_test() ->
-    ?assertError({option, pattern}, e2_opt:validate(
+    ?assertError({badarg, pattern}, e2_opt:validate(
                                       [], [{email, [{pattern, "[a-z"}]}])).
+
+validator_test() ->
+    AgeCheck = fun(Ok) when Ok < 10 -> ok; (_) -> error end,
+    Schema = [{age, [{validator, AgeCheck}]}],
+    ?assertEqual(0, e2_opt:value(age, e2_opt:validate([{age, 0}], Schema))),
+    ?assertError({value, age}, e2_opt:validate([{age, 11}], Schema)).
 
 missing_val_test() ->
     Opts = e2_opt:validate([], []),
     ?assertError(badarg, e2_opt:value(name, Opts)).
+
+duplicate_test() ->
+    Schema = [foo],
+    ?assertError({duplicate, foo}, e2_opt:validate(
+                                     [{foo, 1}, {foo, 2}], Schema)).
+
+implicit_test() ->
+    Schema = [{type, [{values, [dog, cat, lion]}, implicit]}],
+    ?assertEqual(dog, e2_opt:value(type, e2_opt:validate([dog], Schema))),
+    ?assertEqual(cat, e2_opt:value(type, e2_opt:validate([cat], Schema))),
+    ?assertError({required, type}, e2_opt:validate([], Schema)),
+    ?assertError({duplicate, type}, e2_opt:validate([dog, cat], Schema)).
 
 usage_test() ->
     Schema = [{name, [{type, string}]},
