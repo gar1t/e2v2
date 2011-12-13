@@ -1,6 +1,6 @@
 -module(e2_opt).
 
--export([validate/2, validate/3, value/2]).
+-export([validate/2, validate/3, value/2, value/3]).
 
 -define(NO_DEFAULT, '$e2_opt_nodefault').
 
@@ -11,15 +11,20 @@
          min,
          max,
          pattern,
-         validator,
+         validate,
          implicit=false,
+         optional=false,
          default=?NO_DEFAULT}).
 
 -define(is_type(T), (T == int orelse
                      T == float orelse
                      T == string orelse
                      T == number orelse
-                     is_function(T))).
+                     T == atom orelse
+                     T == list orelse
+                     T == boolean orelse
+                     T == binary orelse
+                     T == function)).
 
 %%%===================================================================
 %%% API
@@ -35,7 +40,14 @@ validate([Opt|Rest], #schema{}=Schema, Opts0) ->
 validate(MoreOptions, Schema, Opts0) ->
     validate(MoreOptions, compile_schema(Schema), Opts0).
 
-value(Name, Opts) -> dict:fetch(Name, Opts).
+value(Name, Opts) ->
+    dict:fetch(Name, Opts).
+
+value(Name, Opts, Default) ->
+    case dict:find(Name, Opts) of
+        {ok, Value} -> Value;
+        error -> Default
+    end.
 
 compile_schema(Schema) ->
     Constraints = [compile_constraint(C) || C <- Schema],
@@ -75,6 +87,8 @@ apply_constraint_options([{values, Values}|Rest], C) when is_list(Values) ->
     apply_constraint_options(Rest, ?constraint_val(values, Values, C));
 apply_constraint_options([{type, Type}|Rest], C) when ?is_type(Type) ->
     apply_constraint_options(Rest, ?constraint_val(type, Type, C));
+apply_constraint_options([Type|Rest], C) when ?is_type(Type) ->
+    apply_constraint_options(Rest, ?constraint_val(type, Type, C));
 apply_constraint_options([{min, Min}|Rest], C) ->
     apply_constraint_options(Rest, ?constraint_val(min, Min, C));
 apply_constraint_options([{max, Max}|Rest], C) ->
@@ -82,9 +96,13 @@ apply_constraint_options([{max, Max}|Rest], C) ->
 apply_constraint_options([{pattern, Pattern}|Rest], C) ->
     apply_constraint_options(
       Rest, ?constraint_val(pattern, compile_pattern(Pattern), C));
-apply_constraint_options([{validator, F}|Rest], C) when is_function(F) ->
+apply_constraint_options([{validate, F}|Rest], C) when is_function(F) ->
     apply_constraint_options(
-      Rest, ?constraint_val(validator, check_validator(F), C));
+      Rest, ?constraint_val(validate, check_validate(F), C));
+apply_constraint_options([optional|Rest], C) ->
+    apply_constraint_options(Rest, ?constraint_val(optional, true, C));
+apply_constraint_options([{optional, B}|Rest], C) when is_boolean(B) ->
+    apply_constraint_options(Rest, ?constraint_val(optional, B, C));
 apply_constraint_options([{default, Default}|Rest], C) ->
     apply_constraint_options(Rest, ?constraint_val(default, Default, C));
 apply_constraint_options([implicit|Rest], C) ->
@@ -100,10 +118,10 @@ compile_pattern(Pattern) ->
         {error, _} -> error({badarg, pattern})
     end.
 
-check_validator(F) ->
+check_validate(F) ->
     case erlang:fun_info(F, arity) of
         {arity, 1} -> F;
-        {arity, _} -> error({badarg, validator})
+        {arity, _} -> error({badarg, validate})
     end.
 
 apply_opt(Opt, Schema, Opts) ->
@@ -118,9 +136,9 @@ validate_opt({Name, Value}, Schema) ->
         {ok, Constraint} ->
             case check_value(Value, Constraint) of
                 ok -> {Name, Value};
-                error -> error({value, Name})
+                error -> error({badarg, Name})
             end;
-        error -> error({option, Name})
+        error -> error({badarg, Name})
     end;
 validate_opt(Option, Schema) ->
     case implicit_option(Option, Schema) of
@@ -147,7 +165,7 @@ check_value(Val, Constraint) ->
                   fun check_type/2,
                   fun check_range/2,
                   fun check_pattern/2,
-                  fun check_validator/2]).
+                  fun apply_validate/2]).
 
 apply_checks(_Val, _Constraint, []) -> ok;
 apply_checks(Val, Constraint, [Check|Rest]) ->
@@ -179,6 +197,11 @@ check_type(Val, #constraint{type=string}) ->
         true -> ok;
         false -> error
     end;
+check_type(Val, #constraint{type=boolean}) when is_boolean(Val) -> ok;
+check_type(Val, #constraint{type=list}) when is_list(Val) -> ok;
+check_type(Val, #constraint{type=atom}) when is_atom(Val) -> ok;
+check_type(Val, #constraint{type=binary}) when is_binary(Val) -> ok;
+check_type(Val, #constraint{type=function}) when is_function(Val) -> ok;
 check_type(_, _) -> error.
 
 check_range(_Val, #constraint{min=undefined, max=undefined}) -> ok;
@@ -195,23 +218,27 @@ check_pattern(Val, #constraint{pattern=Regex}) ->
         nomatch -> error
     end.
 
-check_validator(_Val, #constraint{validator=undefined}) -> ok;
-check_validator(Val, #constraint{validator=Validate}) ->
+apply_validate(_Val, #constraint{validate=undefined}) -> ok;
+apply_validate(Val, #constraint{validate=Validate}) ->
     case Validate(Val) of
         ok -> ok;
         error -> error;
-        Other -> error({validator_result, Other})
+        Other -> error({validate_result, Other})
     end.
 
 apply_missing(#schema{constraints=Constraints}, Opts0) ->
     lists:foldl(fun apply_default/2, Opts0, Constraints).
 
-apply_default({Name, #constraint{default=Default}}, Opts) ->
+apply_default({Name, #constraint{default=Default, optional=Optional}}, Opts) ->
     case dict:find(Name, Opts) of
         {ok, _} -> Opts;
         error ->
             case Default of
-                ?NO_DEFAULT -> error({required, Name});
+                ?NO_DEFAULT ->
+                    case Optional of
+                        true -> Opts;
+                        false -> error({required, Name})
+                    end;
                 _ -> dict:store(Name, Default, Opts)
             end
     end.
