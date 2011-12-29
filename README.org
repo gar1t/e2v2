@@ -1,0 +1,213 @@
+* API Design
+
+** e2_service
+
+Require a "callbacks" argument. This can be expressed in two ways:
+
+- Module
+- Record of callback functions (do we need this?)
+
+A module is a short hand for a predefined set of callbacks that may be exported
+by the module.
+
+Also require an "init state" argument. This is either the single argument to an
+"init" function, or if the "init" function isn't a part of the callbacks, the
+initial state of the process.
+
+All remaining arguments should be optional.
+* Services
+
+- Named or registered
+- Anonymous
+
+* Supervisors
+
+** Rambling Notes
+
+There's an app supervisor, which is used like this:
+
+#+begin_src erlanga
+  e2_application_sup:start_link(E2App).
+#+end_src
+
+It looks like the intent here is to not use callbacks here.
+
+I'm wondering what the point of using init/1 with supervisors, as opposed to
+just specifying a child spec.
+
+init/1 has access to the application config, whereas the caller might not.
+
+But is that really a reason to require a separate module for a supervisor?
+
+Actually, a supervisor is a factory API, so it's a good idea.
+
+So that's that.
+
+But there's no need for a callback?
+
+Here's how the task supervisor is used:
+
+#+begin_src erlang
+  -module(calc_handler_sup).
+
+  -behavior(e2_task_supervisor).
+
+  -export([start_link/0, start_handler/1]).
+
+  start_link() ->
+      e2_task_supervisor:start_link(?MODULE).
+
+  start_handler(Socket) ->
+      e2_task_supervisor:start_task(?MODULE, calc_handler, [Socket]).
+
+#+end_src
+
+When would `start_link/0` be called outside the context of an application
+start?
+
+Looking at http://www.erlang.org/doc/man/supervisor.html it's not clear what
+benefit init/1 provides outside of just passing the child spec to the
+supervisor start_link.
+
+** Use
+
+A very simple, common supervisor spec:
+
+#+BEGIN_SRC erlang
+  supervisor:start_link([my_ids, my_data, my_web])
+#+END_SRC
+
+This will start and supervisor the list of services using a one_for_one restart
+strategy, which is a common scenarion.
+
+If you want to change the restart policy, specify it as an option:
+
+#+BEGIN_SRC erlang
+  supervisor:start_link([my_ids, my_data, my_web], [one_for_all])
+#+END_SRC
+
+To specify options for a child, you can provide a tuple with a list of options:
+
+#+BEGIN_SRC erlang
+  supervisor:start_link([{my_ids, [{args, ["some_seed"])
+#+END_SRC
+
+* Utils
+
+** Options Processing
+
+It's common to accept a proplist as an argument to an operation. The problem is
+that property lists are easy to get wrong -- and without proper validation, the
+user may specify something incorrectly without realizing it.
+
+We need a module that takes an option schema and converts a user provided
+proplist into a validated list.
+
+Something like this:
+
+#+BEGIN_SRC erlang
+  Schema = [{color, ?DEFAULT_COLOR}],
+  Opts = e2_opt:validate(Options, Schema),
+  Color = e2_opt:value(color, Opts)
+#+END_SRC
+
+* Pitch
+
+** vs Scala
+
+The e2 service analog to the Scala Counter class:
+
+#+begin_src erlang
+  -module(counter).
+
+  -compile(export_all).
+
+  start_link() ->
+      e2_service:start_link(0).
+
+  tick(T) ->
+      e2_service:call(T, {handle_tick, []}).
+
+  handle_tick(Counter) ->
+      Next = Counter + 1,
+      {reply, Next, Next}.
+
+#+end_src
+
+A little cheating here: export_all flag and not declaring the e2_service
+behavior.
+
+What if we wanted to make the initialization implicit?
+
+#+begin_src erlang
+  -module(counter).
+
+  -include_lib("e2/include/e2.hrl").
+
+  -e2_service([{init_state, 0}]).
+
+  tick(T) -> e2_service:cast(T, handle_tick).
+
+  handle_tick(Counter) ->
+      Next = Counter + 1,
+      io:format("~b~n", [Next]),
+      {noreply, Next}.
+
+#+end_src
+
+IMO this is a mess:
+
+- The implicit behavior is just as much work as the explicit behavior above
+- Process initialization is a part of the module API -- it needs to be defined
+  so it can be documented
+
+So, NO! Bad dog!
+
+A stricter Erlangy interpretation, which is closer in spirit to the Scala actor
+example:
+
+#+begin_src erlang
+  -module(counter).
+
+  -export([start/0]).
+
+  start() ->
+      spawn(fun() -> loop(0) end).
+
+  loop(Counter) ->
+      receive
+          tick ->
+              Next = Counter + 1,
+              io:format("~b~n", [Next]),
+              loop(Next)
+      end.
+
+#+end_src
+
+Here's some aweful code:
+
+#+begin_src fundamental
+  val result = (actor !! Message).as[String]
+#+end_src
+
+This is what we'd expect in Erlang:
+
+#+begin_src erlang
+  Result = some_module:some_function(Actor),
+  ResultAsStr = io_lib:format("~p", [Result])
+#+end_src
+
+The advantage of Erlang here is that it's so damn simple. There's no implicit
+stuff that goes anywhere -- it's all just functions. That it!
+
+E.g. in Scala, what the hell is this:
+
+#+begin_src fundamental
+  class MyActor extends Actor {
+    self.dispatcher = Dispatchers.newThreadBasedDispatcher(self)
+    ...
+  }
+  actor.dispatcher = dispatcher // before started
+#+end_src
+
+This smells, nay, reeks, of Scala's Java heritage.
