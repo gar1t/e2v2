@@ -92,6 +92,82 @@ To specify options for a child, you can provide a tuple with a list of options:
   supervisor:start_link([{my_ids, [{args, ["some_seed"])
 #+END_SRC
 
+* Message Handling
+
+gen_servers handle three types of messages:
+
+- Calls
+- Casts
+- Other Erlang messages
+
+There are three different callbacks used for this:
+
+- handle_call/3
+- handle_cast/2
+- handle_info/2
+
+I *think* this delineation could be a Bad Thing:
+
+- It's not necessary to break up the handler implementation like this
+- The handler implementation is bound to the way the message is sent
+
+I'd rather see a single message handler that looked like this:
+
+#+begin_src erlang
+  @spec handle_msg(Msg, From, State) -> Result
+  Msg = term()
+  From = anonymous | {pid(), Tag}
+  State = term()
+  Result = {noreply, State} | {reply, Reply, State} | ...
+  @end
+#+end_src
+
+In cases where a message doesn't have a sender (e.g. a cast or a normal Erlang
+message), the From argument will be 'anonymous' (NOTE: could alternatively be
+'undefined' or similar).
+
+It would be accessptable to return {reply, Value, State} even for anonymous
+messages -- this would just mean that the reply value is ignored.
+
+I don't see any difference between a cast and a normal Erlang send. I can see
+the interest in providing a 'cast' function in the interest of symmetry with
+'call' -- but I'd rather see it called gen_server:send/2 -- which is really
+nothing more than a alternative spelling of erlang:send/2.
+
+With this approach, an e2 process would just need to export a single
+handle_msg/3 callback to deal with anything.
+
+How does this relate to explicitly mapped callbacks? E.g. a typical public
+function is implemented like this:
+
+#+begin_src erlang
+  ping() ->
+      e2_service:call(?MODULE, {handle_ping, []}).
+
+  handle_ping(_From, State) ->
+      {reply, pong, State}.
+#+end_src
+
+I suppose the alternative spelling in the case of handle_msg would look like
+this:
+
+#+begin_src erlang
+  ping() ->
+      e2_service:call(?MODULE, ping).
+
+  handle_msg(ping, _From, State) ->
+      {reply, pong, State}.
+#+end_src
+
+In some ways I prefer this to the explicit handler form:
+
+- Avoids the smelly Args ++ [From, State] pattern
+- Makes it clear that a process implementation is a message handler
+- Makes it easier to group message handling logic
+
+The original motivator for this change was not to simplify the callback API --
+it was to make it easier to view a process's message handling logic in once place.
+
 * Utils
 
 ** Options Processing
@@ -211,3 +287,28 @@ E.g. in Scala, what the hell is this:
 #+end_src
 
 This smells, nay, reeks, of Scala's Java heritage.
+
+* To Do / Issues
+
+** Finish service and task APIs
+
+Get these back working.
+
+Be sure to export behaviour_info!
+
+** Consider the handle_msg/3 refactor
+
+See "Message Handling" above.
+
+Status update 12/4/2012: This is implemented.
+
+** Application init callback needs a param
+
+Support two forms:
+
+- If the app is specified as {Module, ArgList}, then invoke init/1
+- If the app is specified as Module, invoke init/0
+** Document implicit trap_exit behavior
+
+If a service exports terminate/2, exits are automatically trapped for the
+process. I think this is right, but it's implicit and needs to be documented.
