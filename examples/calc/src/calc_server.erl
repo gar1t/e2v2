@@ -4,7 +4,7 @@
 
 -export([start_link/0, start_link/1]).
 
--export([init/1, handle_info/2]).
+-export([init/1, handle_msg/3]).
 
 -record(state, {socket}).
 
@@ -28,12 +28,12 @@ start_link(Options) ->
 
 init(Options) ->
     {ok, Socket} = gen_tcp:listen(listen_port(Options), ?TCP_OPTIONS),
-    {ok, #state{socket=Socket}, 0}.
+    {ok, #state{socket=Socket}, accept}.
 
-handle_info(timeout, #state{socket=LSocket}=State) ->
+handle_msg(accept, noreply, #state{socket=LSocket}=State) ->
     {ok, Socket} = gen_tcp:accept(LSocket),
     {ok, _} = calc_handler_sup:start_handler(Socket),
-    {noreply, State, 0}.
+    {noreply, State, accept}.
 
 %%%-------------------------------------------------------------------
 %%% Internal functions
