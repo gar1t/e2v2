@@ -4,6 +4,7 @@
 
 -export([start_link/0,
          subscribe/1, subscribe/2,
+         subscribe_all/0, subscribe_all/1,
          unsubscribe/1, unsubscribe/2,
          unsubscribe_all/0, unsubscribe_all/1,
          publish/1]).
@@ -16,6 +17,12 @@ subscribe(Pattern) ->
 
 subscribe(Pattern, Subscriber) ->
     e2_publisher:subscribe(?MODULE, Pattern, Subscriber).
+
+subscribe_all() ->
+    e2_publisher:subscribe_all(?MODULE).
+
+subscribe_all(Subscriber) ->
+    e2_publisher:subscribe_all(?MODULE, Subscriber).
 
 unsubscribe(Pattern) ->
     e2_publisher:unsubscribe(?MODULE, Pattern).

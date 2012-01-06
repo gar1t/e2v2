@@ -6,6 +6,8 @@
          start_link/3,
          subscribe/2,
          subscribe/3,
+         subscribe_all/1,
+         subscribe_all/2,
          unsubscribe/2,
          unsubscribe/3,
          unsubscribe_all/1,
@@ -38,6 +40,12 @@ subscribe(Publisher, Pattern, Subscriber) ->
     e2_service:call(
       Publisher, {'$sub', Pattern, compile_pattern(Pattern), Subscriber}).
 
+subscribe_all(Publisher) ->
+    subscribe_all(Publisher, self()).
+
+subscribe_all(Publisher, Subscriber) ->
+    e2_service:call(Publisher, {'$sub_all', Subscriber}).
+
 unsubscribe(Publisher, Pattern) ->
     unsubscribe(Publisher, Pattern, self()).
 
@@ -65,6 +73,9 @@ handle_msg({'DOWN', _Ref, process, Pid, _Info}, noreply, State) ->
     {noreply, remove_all_subscribers(Pid, State)};
 handle_msg({'$sub', Pattern, Compiled, Subscriber}, _From, State0) ->
     {Added, State} = add_subscriber(Pattern, Compiled, Subscriber, State0),
+    {reply, Added, State};
+handle_msg({'$sub_all', Subscriber}, _From, State0) ->
+    {Added, State} = add_subscriber(all, all, Subscriber, State0),
     {reply, Added, State};
 handle_msg({'$unsub', Pattern, Subscriber}, _From, State0) ->
     {Removed, State} = remove_subscriber(Pattern, Subscriber, State0),
@@ -130,8 +141,9 @@ publish_msg(Msg, #state{subs=Subs}) ->
 compile_pattern(Pattern) ->
     ets:match_spec_compile([{Pattern, [], ['$_']}]).
 
-match_pattern(Msg, Pattern) ->
-    case ets:match_spec_run([Msg], Pattern) of
+match_pattern(_, all) -> true;
+match_pattern(Msg, Compiled) ->
+    case ets:match_spec_run([Msg], Compiled) of
         [] -> false;
         [_] -> true
     end.
