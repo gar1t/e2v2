@@ -3,6 +3,9 @@ TESTS=""
 compile:
 	./rebar compile
 
+quick:
+	./rebar compile skip_deps=true
+
 .PHONY: test
 test: compile
 ifeq ($(TESTS), "")
