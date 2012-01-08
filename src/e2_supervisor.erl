@@ -26,7 +26,8 @@ behaviour_info(callbacks) -> [].
            {default, ?DEFAULT_STRATEGY}]},
          {max_restart,
           [{validate, fun validate_max_restart/1},
-           {default, ?DEFAULT_MAX_RESTART}]}]).
+           {default, ?DEFAULT_MAX_RESTART}]},
+         {registered, [{default, undefined}]}]).
 
 -define(CHILD_SCHEMA,
         [{id, [optional]},
@@ -48,12 +49,16 @@ behaviour_info(callbacks) -> [].
 %%% API
 %%%===================================================================
 
-start_link(Children, Options) ->
-    supervisor:start_link(?MODULE, supervisor_spec(Children, Options)).
+start_link(Module, ChildrenOrArgs) ->
+    start_link(Module, ChildrenOrArgs, []).
 
-start_link(SupName, Children, Options) when is_atom(SupName) ->
-    supervisor:start_link({local, SupName}, ?MODULE,
-                          supervisor_spec(Children, Options)).
+start_link(Module, ChildrenOrArgs, Options) ->
+    case exports_init(Module) of
+        true ->
+            start_supervisor_with_init(Module, ChildrenOrArgs, Options);
+        false ->
+            start_supervisor_with_spec(Module, ChildrenOrArgs, Options)
+    end.
 
 supervisor_spec(Children, Options) ->
     ValidatedOpts = e2_opt:validate(Options, ?OPTIONS_SCHEMA),
@@ -63,16 +68,38 @@ supervisor_spec(Children, Options) ->
 %%% supervisor callbacks
 %%%===================================================================
 
-init(SupervisorSpec) ->
-    %% NOTE: This is a straight pass through from the start_link args.
-    %% I'm not sure what other operation could be performed here, but
-    %% there might be a need for a callback to an initializer here (i.e.
-    %% within the context of the supervisor process).
-    {ok, SupervisorSpec}.
+init({init, Module, Args}) ->
+    dispatch_init(Module, Args);
+init({spec, Spec}) ->
+    {ok, Spec}.
 
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+
+exports_init(Module) ->
+    erlang:function_exported(Module, init, 1).
+
+start_supervisor_with_init(Module, Args, Options) ->
+    start_supervisor(sup_name(Module, Options), {init, Module, Args}).
+
+start_supervisor_with_spec(Module, Children, Options) ->
+    ValidatedOpts = e2_opt:validate(Options, ?OPTIONS_SCHEMA),
+    Spec = {restart_spec(ValidatedOpts), child_specs(Children)},
+    start_supervisor(sup_name(Module, ValidatedOpts), {spec, Spec}).
+
+sup_name(Module, Options) ->
+    case e2_opt:value(registered, Options) of
+        undefined -> unregistered;
+        true -> {registered, Module};
+        Name when is_atom(Name) -> {registered, Name};
+        Other -> error({badarg, Other})
+    end.
+
+start_supervisor(unregistered, Args) ->
+    supervisor:start_link(?MODULE, Args);
+start_supervisor({registered, Name}, Args) ->
+    supervisor:start_link({local, Name}, ?MODULE, Args).
 
 validate_max_restart({MaxR, MaxT})
   when is_integer(MaxR), is_integer(MaxT),
@@ -86,8 +113,8 @@ validate_shutdown(_) -> error.
 child_specs(Children) ->
     lists:map(fun child_spec/1, Children).
 
-child_spec({Mod, Options0}) when is_atom(Mod) ->
-    Opts = e2_opt:validate(Options0, ?CHILD_SCHEMA),
+child_spec({Mod, Options}) when is_atom(Mod) ->
+    Opts = e2_opt:validate(Options, ?CHILD_SCHEMA),
     Id = e2_opt:value(id, Opts, Mod),
     Fun = e2_opt:value(function, Opts),
     Args = e2_opt:value(args, Opts),
@@ -101,3 +128,12 @@ child_spec(Other) -> error({badarg, Other}).
 restart_spec(Opts) ->
     {MaxR, MaxT} = e2_opt:value(max_restart, Opts),
     {e2_opt:value(strategy, Opts), MaxR, MaxT}.
+
+dispatch_init(Module, Args) ->
+    handle_init_result(Module:init(Args)).
+
+handle_init_result({ok, Children, Options}) ->
+    ValidatedOpts = e2_opt:validate(Options, ?OPTIONS_SCHEMA),
+    {ok, {restart_spec(ValidatedOpts), child_specs(Children)}};
+handle_init_result(ignore) -> ignore;
+handle_init_result(Other) -> error({bad_return_value, Other}).
