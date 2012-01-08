@@ -290,18 +290,6 @@ This smells, nay, reeks, of Scala's Java heritage.
 
 * To Do / Issues
 
-** Finish service and task APIs
-
-Get these back working.
-
-Be sure to export behaviour_info!
-
-** Consider the handle_msg/3 refactor
-
-See "Message Handling" above.
-
-Status update 12/4/2012: This is implemented.
-
 ** Application init callback needs a param
 
 Support two forms:
@@ -330,3 +318,11 @@ exception on error.
 For idempotent operations, I don't know if we care about distinguishing the
 result. I.e. if we're not technically adding because a subscriber already
 exists, who cares?
+** Upcoming supervisor proplist support
+
+In this thread:
+
+http://comments.gmane.org/gmane.comp.lang.erlang.patches/2588
+
+RC is proposing something similar to what we have for e2_supervisor. Let's sync
+up on that if/when it lands!
