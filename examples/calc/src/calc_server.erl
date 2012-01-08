@@ -13,19 +13,21 @@
 -define(DEFAULT_PORT, 6666).
 
 %%%-------------------------------------------------------------------
-%%% Initialization
+%%% API
 %%%-------------------------------------------------------------------
 
 start_link() ->
-    start_link(application:get_all_env()).
+    start_link(app_env).
 
 start_link(Options) ->
     e2_service:start_link(?MODULE, Options).
 
 %%%-------------------------------------------------------------------
-%%% Callbacks
+%%% Service callbacks
 %%%-------------------------------------------------------------------
 
+init(app_env) ->
+    init(application:get_all_env());
 init(Options) ->
     {ok, Socket} = gen_tcp:listen(listen_port(Options), ?TCP_OPTIONS),
     {ok, #state{socket=Socket}, accept}.

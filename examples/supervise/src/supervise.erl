@@ -7,17 +7,17 @@
 permanent() ->
     application:start(sasl),
 
-    info_msg("Starting supervisor with permanent child~n"),
-    Children = [{service, [permanent]}],
-    SupervisorOpts = [{max_restart, {1, 1}}],
-    {ok, Sup} = e2_supervisor:start_link(Children, SupervisorOpts),
+    info_msg("Starting permanent_sup~n"),
+    {ok, Sup} = permanent_sup:start_link(),
 
     timer:sleep(100),
-    info_msg("Simulating service stop (will be restarted)~n"),
+    info_msg("Simulating normal service stop - WILL be restarted "
+             "(permanent strategy)~n"),
     service:stop(normal),
 
     timer:sleep(100),
-    info_msg("Simulating another service stop (won't be restarted)~n"),
+    info_msg("Simulating another normal service stop - will NOT be restarted "
+             "(reached_max_restart_intensity)~n"),
     service:stop(normal),
 
     timer:sleep(100),
@@ -29,15 +29,15 @@ permanent() ->
 temporary() ->
     application:start(sasl),
 
-    info_msg("Starting supervisor with temporary child~n"),
-    Children = [{service, [temporary]}],
-    SupervisorOpts = [{max_restart, {1, 1}}],
-    {ok, Sup} = e2_supervisor:start_link(Children, SupervisorOpts),
+    info_msg("Starting temporary_sup~n"),
+    {ok, Sup} = temporary_sup:start_link(),
 
     timer:sleep(100),
-    info_msg("Simulating service error (won't be started)~n"),
+    info_msg("Simulating service error - will NOT be started "
+             "(temporary strategy)~n"),
     service:stop(error),
 
+    timer:sleep(100),
     info_msg("Stopping supervisor~n"),
     exit(Sup, shutdown),
 
@@ -46,17 +46,17 @@ temporary() ->
 transient() ->
     application:start(sasl),
 
-    info_msg("Starting supervisor with transient child~n"),
-    Children = [{service, [transient]}],
-    SupervisorOpts = [{max_restart, {2, 1}}],
-    {ok, Sup} = e2_supervisor:start_link(Children, SupervisorOpts),
+    info_msg("Starting transient_sup~n"),
+    {ok, Sup} = transient_sup:start_link(),
 
     timer:sleep(100),
-    info_msg("Simulating service error (will be restarted)~n"),
+    info_msg("Simulating service error - WILL be restarted "
+             "(transient strategy)~n"),
     service:stop(error),
 
     timer:sleep(100),
-    info_msg("Simulating server stop (will not be restarted)~n"),
+    info_msg("Simulating normal service stop - will NOT be restarted "
+             "(transient strategy)~n"),
     service:stop(normal),
 
     timer:sleep(100),
