@@ -11,7 +11,7 @@
 
 behaviour_info(callbacks) -> [{handle_msg, 3}].
 
--record(state, {mod, cb_state, first_msg}).
+-record(state, {mod, mod_state, timeout_msg}).
 
 %%%===================================================================
 %%% API
@@ -33,14 +33,14 @@ start_link(Module, Args) ->
 start_link(Module, Args, Options) ->
     start_gen_server(server_name(Module, Options), Module, Args, Options).
 
-call(ServerRef, Handler) ->
-    call(ServerRef, Handler, infinity).
+call(ServiceRef, Handler) ->
+    call(ServiceRef, Handler, infinity).
 
-call(ServerRef, Handler, Timeout) ->
-    gen_server:call(ServerRef, {'$call', Handler}, Timeout).
+call(ServiceRef, Handler, Timeout) ->
+    gen_server:call(ServiceRef, {'$call', Handler}, Timeout).
 
-cast(ServerRef, Handler) ->
-    gen_server:cast(ServerRef, {'$cast', Handler}).
+cast(ServiceRef, Handler) ->
+    gen_server:cast(ServiceRef, {'$cast', Handler}).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -73,8 +73,8 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 
 server_name(Module, Options) ->
-    case proplists:get_value(registered, Options, '$undefined') of
-        '$undefined' -> unregistered;
+    case proplists:get_value(registered, Options) of
+        undefined -> unregistered;
         true -> {registered, Module};
         Name when is_atom(Name) -> {registered, Name};
         Other -> error({badarg, Other})
@@ -107,13 +107,10 @@ dispatch_init(Module, Args, State) ->
             handle_init_result(e2_util:apply_handler(Init, [Args]), State)
     end.
 
-handle_init_result({ok, CbState}, State) ->
-    {ok, set_cb_state(State, CbState)};
-handle_init_result({ok, CbState, Timeout}, State)
-  when is_integer(Timeout) ->
-    {ok, set_cb_state(State, CbState), Timeout};
-handle_init_result({ok, CbState, FirstMsg}, State) ->
-    {ok, set_first_msg(set_cb_state(State, CbState), FirstMsg), 0};
+handle_init_result({ok, ModState}, State) ->
+    {ok, set_mod_state(ModState, State)};
+handle_init_result({ok, ModState, FirstMsg}, State) ->
+    {ok, set_timeout_msg(FirstMsg, set_mod_state(ModState, State)), 0};
 handle_init_result({stop, Reason}, _State) ->
     {stop, Reason};
 handle_init_result(ignore, _State) ->
@@ -121,78 +118,76 @@ handle_init_result(ignore, _State) ->
 handle_init_result(Other, _State) ->
     exit({bad_return_value, Other}).
 
-dispatch_call(Msg, From, #state{mod=Module, cb_state=CbState}=State) ->
-    handle_call_result(dispatch_msg(Module, Msg, From, CbState), State).
+dispatch_call(Msg, From, #state{mod=Module, mod_state=ModState}=State) ->
+    handle_call_result(dispatch_msg(Module, Msg, From, ModState), State).
 
-handle_call_result({reply, Reply, CbState}, State) ->
-    {reply, Reply, set_cb_state(State, CbState)};
-handle_call_result({reply, Reply, CbState, Timeout}, State) ->
-    {reply, Reply, set_cb_state(State, CbState), Timeout};
-handle_call_result({noreply, CbState}, State) ->
-    {noreply, set_cb_state(State, CbState)};
-handle_call_result({noreply, CbState, Timeout}, State) ->
-    {noreply, set_cb_state(State, CbState), Timeout};
-handle_call_result({stop, Reason, CbState}, State) ->
-    {stop, Reason, set_cb_state(State, CbState)};
-handle_call_result({stop, Reason, Reply, CbState}, State) ->
-    {stop, Reason, Reply, set_cb_state(State, CbState)};
+handle_call_result({reply, Reply, ModState}, State) ->
+    {reply, Reply, set_mod_state(ModState, State)};
+handle_call_result({noreply, ModState}, State) ->
+    {noreply, set_mod_state(ModState, State)};
+handle_call_result({noreply, ModState, NextMsg}, State) ->
+    {noreply, set_timeout_msg(NextMsg, set_mod_state(ModState, State)), 0};
+handle_call_result({stop, Reason, ModState}, State) ->
+    {stop, Reason, set_mod_state(ModState, State)};
+handle_call_result({stop, Reason, Reply, ModState}, State) ->
+    {stop, Reason, Reply, set_mod_state(ModState, State)};
 handle_call_result(Other, _State) ->
     exit({bad_return_value, Other}).
 
-dispatch_cast(Msg, #state{mod=Module, cb_state=CbState}=State) ->
-    handle_cast_result(dispatch_msg_noreply(Module, Msg, CbState), State).
+dispatch_cast(Msg, #state{mod=Module, mod_state=ModState}=State) ->
+    handle_cast_result(dispatch_msg_noreply(Module, Msg, ModState), State).
 
-handle_cast_result({noreply, CbState}, State) ->
-    {noreply, set_cb_state(State, CbState)};
-handle_cast_result({noreply, CbState, Timeout}, State) ->
-    {noreply, set_cb_state(State, CbState), Timeout};
-handle_cast_result({reply, _Reply, CbState}, State) ->
-    {noreply, set_cb_state(State, CbState)};
-handle_cast_result({reply, _Reply, CbState, Timeout}, State) ->
-    {noreply, set_cb_state(State, CbState), Timeout};
-handle_cast_result({stop, Reason, CbState}, State) ->
-    {stop, Reason, set_cb_state(State, CbState)};
+handle_cast_result({noreply, ModState}, State) ->
+    {noreply, set_mod_state(ModState, State)};
+handle_cast_result({noreply, ModState, NextMsg}, State) ->
+    {noreply, set_timeout_msg(NextMsg, set_mod_state(ModState, State)), 0};
+handle_cast_result({reply, _Reply, ModState}, State) ->
+    {noreply, set_mod_state(ModState, State)};
+handle_cast_result({reply, _Reply, ModState, NextMsg}, State) ->
+    {noreply, set_timeout_msg(NextMsg, set_mod_state(ModState, State)), 0};
+handle_cast_result({stop, Reason, ModState}, State) ->
+    {stop, Reason, set_mod_state(ModState, State)};
 handle_cast_result(Other, _State) ->
     exit({bad_return_value, Other}).
 
-dispatch_info(timeout, #state{mod=Module, cb_state=CbState,
-                              first_msg=Msg}=State) when Msg =/= undefined ->
+dispatch_info(timeout, #state{mod=Module, mod_state=ModState,
+                              timeout_msg=Msg}=State) when Msg =/= undefined ->
     handle_info_result(
-      dispatch_msg_noreply(Module, Msg, CbState), clear_first_msg(State));
-dispatch_info(Msg, #state{mod=Module, cb_state=CbState}=State) ->
-    handle_info_result(dispatch_msg_noreply(Module, Msg, CbState), State).
+      dispatch_msg_noreply(Module, Msg, ModState), clear_timeout_msg(State));
+dispatch_info(Msg, #state{mod=Module, mod_state=ModState}=State) ->
+    handle_info_result(dispatch_msg_noreply(Module, Msg, ModState), State).
 
-handle_info_result({noreply, CbState}, State) ->
-    {noreply, set_cb_state(State, CbState)};
-handle_info_result({noreply, CbState, Timeout}, State) ->
-    {noreply, set_cb_state(State, CbState), Timeout};
-handle_info_result({reply, _Reply, CbState}, State) ->
-    {noreply, set_cb_state(State, CbState)};
-handle_info_result({reply, _Reply, CbState, Timeout}, State) ->
-    {noreply, set_cb_state(State, CbState), Timeout};
-handle_info_result({stop, Reason, CbState}, State) ->
-    {stop, Reason, set_cb_state(State, CbState)};
+handle_info_result({noreply, ModState}, State) ->
+    {noreply, set_mod_state(ModState, State)};
+handle_info_result({noreply, ModState, NextMsg}, State) ->
+    {noreply, set_timeout_msg(NextMsg, set_mod_state(ModState, State)), 0};
+handle_info_result({reply, _Reply, ModState}, State) ->
+    {noreply, set_mod_state(ModState, State)};
+handle_info_result({reply, _Reply, ModState, NextMsg}, State) ->
+    {noreply, set_timeout_msg(NextMsg, set_mod_state(ModState, State)), 0};
+handle_info_result({stop, Reason, ModState}, State) ->
+    {stop, Reason, set_mod_state(ModState, State)};
 handle_info_result(Other, _State) ->
     exit({bad_return_value, Other}).
 
-dispatch_terminate(Reason, #state{mod=Mod, cb_state=CbState}) ->
+dispatch_terminate(Reason, #state{mod=Mod, mod_state=ModState}) ->
     case e2_util:optional_function(Mod, terminate, 2) of
         undefined -> ok;
         Terminate ->
-            e2_util:apply_handler(Terminate, [Reason, CbState])
+            e2_util:apply_handler(Terminate, [Reason, ModState])
     end.
 
-dispatch_msg_noreply(Module, Msg, CbState) ->
-    Module:handle_msg(Msg, noreply, CbState).
+dispatch_msg_noreply(Module, Msg, ModState) ->
+    Module:handle_msg(Msg, noreply, ModState).
 
-dispatch_msg(Module, Msg, From, CbState) ->
-    Module:handle_msg(Msg, From, CbState).
+dispatch_msg(Module, Msg, From, ModState) ->
+    Module:handle_msg(Msg, From, ModState).
 
-set_cb_state(State, CbState) ->
-    State#state{cb_state=CbState}.
+set_mod_state(ModState, State) ->
+    State#state{mod_state=ModState}.
 
-set_first_msg(State, FirstMsg) ->
-    State#state{first_msg=FirstMsg}.
+set_timeout_msg(Msg, State) ->
+    State#state{timeout_msg=Msg}.
 
-clear_first_msg(State) ->
-    State#state{first_msg=undefined}.
+clear_timeout_msg(State) ->
+    State#state{timeout_msg=undefined}.
