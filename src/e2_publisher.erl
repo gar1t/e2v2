@@ -12,7 +12,10 @@
          unsubscribe/3,
          unsubscribe_all/1,
          unsubscribe_all/2,
-         publish/2]).
+         publish/2,
+         call/2,
+         call/3,
+         cast/2]).
 
 -export([init/1, handle_msg/3]).
 
@@ -60,6 +63,15 @@ unsubscribe_all(Publisher, Subscriber) ->
 
 publish(Publisher, Msg) ->
     e2_service:cast(Publisher, {'$pub', Msg}).
+
+call(Publisher, Msg) ->
+    e2_service:call(Publisher, Msg).
+
+call(Publisher, Msg, Timeout) ->
+    e2_service:call(Publisher, Msg, Timeout).
+
+cast(Publisher, Msg) ->
+    e2_service:cast(Publisher, Msg).
 
 %%%===================================================================
 %%% Service callbacks
