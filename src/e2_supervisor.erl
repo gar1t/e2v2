@@ -81,7 +81,8 @@ exports_init(Module) ->
     erlang:function_exported(Module, init, 1).
 
 start_supervisor_with_init(Module, Args, Options) ->
-    start_supervisor(sup_name(Module, Options), {init, Module, Args}).
+    ValidatedOpts = e2_opt:validate(Options, ?OPTIONS_SCHEMA),
+    start_supervisor(sup_name(Module, ValidatedOpts), {init, Module, Args}).
 
 start_supervisor_with_spec(Module, Children, Options) ->
     ValidatedOpts = e2_opt:validate(Options, ?OPTIONS_SCHEMA),
@@ -132,6 +133,8 @@ restart_spec(Opts) ->
 dispatch_init(Module, Args) ->
     handle_init_result(Module:init(Args)).
 
+handle_init_result({ok, Children}) ->
+    handle_init_result({ok, Children, []});
 handle_init_result({ok, Children, Options}) ->
     ValidatedOpts = e2_opt:validate(Options, ?OPTIONS_SCHEMA),
     {ok, {restart_spec(ValidatedOpts), child_specs(Children)}};
