@@ -79,6 +79,8 @@ children({{M, F, A}, Options}) when is_atom(M), is_atom(F), is_list(A) ->
     Opts = e2_opt:validate(Options, ?CHILD_OPTIONS_SCHEMA),
     [{{M, F, A}, [{restart, e2_opt:value(restart, Opts)},
                   {shutdown, e2_opt:value(shutdown, Opts)}]}];
+children({M, F, A}) ->
+    children({{M, F, A}, []});
 children({Mod, Options}) ->
     children({{Mod, start_link, []}, Options});
 children(Mod) when is_atom(Mod) ->
