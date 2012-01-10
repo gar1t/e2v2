@@ -53,10 +53,10 @@ child_id_test() ->
 child_mfa_test() ->
     ?assertMatch(
        {_, [{_, {foo, start, []}, _, _, _, _}]},
-       e2_supervisor:supervisor_spec([{foo, [{function, start}]}], [])),
+       e2_supervisor:supervisor_spec([{{foo, start, []}, []}], [])),
     ?assertMatch(
        {_, [{_, {foo, start_link, [1, 2]}, _, _, _, _}]},
-       e2_supervisor:supervisor_spec([{foo, [{args, [1, 2]}]}], [])).
+       e2_supervisor:supervisor_spec([{{foo, start_link, [1, 2]}, []}], [])).
 
 child_restart_test() ->
     ?assertMatch(

@@ -7,7 +7,7 @@
 
 -export([start_link/2]).
 
--export([init/1, handle_post_init/1, handle_info/2, terminate/2]).
+-export([init/1, handle_msg/3, terminate/2]).
 
 -record(state, {events, event_dest}).
 
@@ -17,16 +17,15 @@ start_link(Events, EventDest) ->
 
 init(State) ->
     %% Use a callback to manage the flow after init returns
-    {ok, add_event(init, State), {handle_post_init, []}}.
+    {ok, add_event(init, State), post_init}.
 
-handle_post_init(State) ->
-    %% Send ourselves a message to channel flow to handle_info
+handle_msg(post_init, noreply, State) ->
+    %% Send ourselves a message
     erlang:send(self(), a_msg),
-    {noreply, add_event(post_init, State)}.
-
-handle_info(Event, State) ->
+    {noreply, add_event(post_init, State)};
+handle_msg(a_msg, noreply, State) ->
     %% Stop to channel flow to terminate
-    {stop, normal, add_event(Event, State)}.
+    {stop, normal, add_event(a_msg, State)}.
 
 terminate(Reason, State) ->
     %% Send our events to the event destination

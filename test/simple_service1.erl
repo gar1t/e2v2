@@ -8,13 +8,13 @@
 
 -export([start_link/1, get_secret/1]).
 
--export([handle_get_secret/2]).
+-export([handle_msg/3]).
 
 start_link(Secret) ->
     e2_service:start_link(?MODULE, Secret).
 
 get_secret(Service) ->
-    e2_service:call(Service, {handle_get_secret, []}).
+    e2_service:call(Service, secret).
 
-handle_get_secret(_From, Secret) ->
+handle_msg(secret, _From, Secret) ->
     {reply, Secret, Secret}.

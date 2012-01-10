@@ -11,6 +11,7 @@
 behaviour_info(callbacks) -> [].
 
 -define(DEFAULT_MAX_RESTART, {1, 1}).
+-define(DEFAULT_RESTART, temporary).
 
 -define(OPTIONS_SCHEMA,
         [{max_restart,
@@ -18,12 +19,10 @@ behaviour_info(callbacks) -> [].
            {default, ?DEFAULT_MAX_RESTART}]},
          {registered, [{default, undefined}]}]).
 
--define(CHILD_SCHEMA,
-        [{function, [atom, {default, start_link}]},
-         {base_args, [list, {default, []}]},
-         {restart,
+-define(CHILD_OPTIONS_SCHEMA,
+        [{restart,
           [{values, [permanent, temporary, transient]},
-           {default, temporary},
+           {default, ?DEFAULT_RESTART},
            implicit]},
          {shutdown,
           [{validate, fun validate_shutdown/1},
@@ -76,14 +75,15 @@ validate_shutdown(Time) when is_integer(Time), Time >= 0 -> ok;
 validate_shutdown(brutal_kill) -> ok;
 validate_shutdown(_) -> error.
 
-children({Mod, Options}) when is_atom(Mod) ->
-    Opts = e2_opt:validate(Options, ?CHILD_SCHEMA),
-    [{Mod, [{function, e2_opt:value(function, Opts)},
-            {args, e2_opt:value(base_args, Opts)},
-            {restart, e2_opt:value(restart, Opts)},
-            {shutdown, e2_opt:value(shutdown, Opts)}]}];
+children({{M, F, A}, Options}) when is_atom(M), is_atom(F), is_list(A) ->
+    Opts = e2_opt:validate(Options, ?CHILD_OPTIONS_SCHEMA),
+    [{{M, F, A}, [{restart, e2_opt:value(restart, Opts)},
+                  {shutdown, e2_opt:value(shutdown, Opts)}]}];
+children({Mod, Options}) ->
+    children({{Mod, start_link, []}, Options});
 children(Mod) when is_atom(Mod) ->
-    children({Mod, []}).
+    children({{Mod, start_link, []}, []});
+children(Other) -> error({badarg, Other}).
 
 sup_options(Options) ->
     e2_opt:validate(Options, ?OPTIONS_SCHEMA),

@@ -11,8 +11,9 @@
 behaviour_info(callbacks) -> [].
 
 -define(DEFAULT_STRATEGY, one_for_one).
-
 -define(DEFAULT_MAX_RESTART, {1, 1}).
+-define(DEFAULT_RESTART, permanent).
+-define(DEFAULT_SHUTDOWN, brutal_kill).
 
 -define(STRATEGIES,
         [one_for_all,
@@ -35,15 +36,13 @@ behaviour_info(callbacks) -> [].
           [{values, [worker, supervisor]},
            {default, worker},
            implicit]},
-         {function, [atom, {default, start_link}]},
-         {args, [list, {default, []}]},
          {restart,
           [{values, [permanent, temporary, transient]},
-           {default, permanent},
+           {default, ?DEFAULT_RESTART},
            implicit]},
          {shutdown,
           [{validate, fun validate_shutdown/1},
-           {default, brutal_kill}]}]).
+           {default, ?DEFAULT_SHUTDOWN}]}]).
 
 %%%===================================================================
 %%% API
@@ -114,16 +113,17 @@ validate_shutdown(_) -> error.
 child_specs(Children) ->
     lists:map(fun child_spec/1, Children).
 
-child_spec({Mod, Options}) when is_atom(Mod) ->
+child_spec({{M, F, A}, Options}) when is_atom(M), is_atom(F), is_list(A) ->
     Opts = e2_opt:validate(Options, ?CHILD_OPTIONS_SCHEMA),
-    Id = e2_opt:value(id, Opts, Mod),
-    Fun = e2_opt:value(function, Opts),
-    Args = e2_opt:value(args, Opts),
+    Id = e2_opt:value(id, Opts, M),
     Restart = e2_opt:value(restart, Opts),
     Shutdown = e2_opt:value(shutdown, Opts),
     Type = e2_opt:value(type, Opts),
-    {Id, {Mod, Fun, Args}, Restart, Shutdown, Type, [Mod]};
-child_spec(Mod) when is_atom(Mod) -> child_spec({Mod, []});
+    {Id, {M, F, A}, Restart, Shutdown, Type, [M]};
+child_spec({Mod, Options}) ->
+    child_spec({{Mod, start_link, []}, Options});
+child_spec(Mod) when is_atom(Mod) ->
+    child_spec({{Mod, start_link, []}, []});
 child_spec(Other) -> error({badarg, Other}).
 
 restart_spec(Opts) ->
