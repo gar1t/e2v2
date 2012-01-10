@@ -15,4 +15,5 @@ start_tasks(N) when N > 0 ->
       end, lists:seq(1, N)).
 
 init() ->
-    {ok, [{task_sup, [supervisor]}]}.
+    {ok, [{task_sup, [supervisor]},
+          {mfa_task_sup, [supervisor]}]}.

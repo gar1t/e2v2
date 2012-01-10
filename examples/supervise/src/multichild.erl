@@ -8,7 +8,7 @@ start_link(ChildCount) ->
     e2_supervisor:start_link(?MODULE, children(ChildCount)).
 
 children(Count) ->
-    [{service, [{id, service_name(N)}, {args, [[unregistered]]}]}
+    [{{service, start_link, [[unregistered]]}, [{id, service_name(N)}]}
      || N <- lists:seq(1, Count)].
 
 service_name(I) ->
