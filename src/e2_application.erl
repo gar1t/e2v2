@@ -2,7 +2,7 @@
 
 -behavior(application).
 
--export([start/2, stop/1, start_dependencies/1]).
+-export([start/2, stop/1, start_dependencies/1, start_with_dependencies/1]).
 
 -export([behaviour_info/1]).
 
@@ -20,6 +20,10 @@ stop(_State) ->
 
 start_dependencies(App) ->
     start_apps(get_dependencies(App)).
+
+start_with_dependencies(App) ->
+    start_dependencies(App),
+    application:start(App).
 
 %%%===================================================================
 %%% Internal functions
