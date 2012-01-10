@@ -7,8 +7,7 @@
 -export([init/0]).
 
 start() ->
-    application:start(sasl),
-    application:start(pubsub).
+    e2_application:start_with_dependencies(pubsub).
 
 init() ->
     {ok, [broker]}.
