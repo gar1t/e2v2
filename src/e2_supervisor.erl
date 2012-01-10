@@ -29,7 +29,7 @@ behaviour_info(callbacks) -> [].
            {default, ?DEFAULT_MAX_RESTART}]},
          {registered, [{default, undefined}]}]).
 
--define(CHILD_SCHEMA,
+-define(CHILD_OPTIONS_SCHEMA,
         [{id, [optional]},
          {type,
           [{values, [worker, supervisor]},
@@ -115,7 +115,7 @@ child_specs(Children) ->
     lists:map(fun child_spec/1, Children).
 
 child_spec({Mod, Options}) when is_atom(Mod) ->
-    Opts = e2_opt:validate(Options, ?CHILD_SCHEMA),
+    Opts = e2_opt:validate(Options, ?CHILD_OPTIONS_SCHEMA),
     Id = e2_opt:value(id, Opts, Mod),
     Fun = e2_opt:value(function, Opts),
     Args = e2_opt:value(args, Opts),
