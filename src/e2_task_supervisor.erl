@@ -61,7 +61,8 @@ exports_init(Module) ->
     erlang:function_exported(Module, init, 1).
 
 start_supervisor_with_init(Module, Args, Options) ->
-    e2_supervisor:start_link(?MODULE, {Module, Args}, Options).
+    e2_supervisor:start_link(
+      ?MODULE, {Module, Args}, update_registered(Module, Options)).
 
 start_supervisor_with_child(Module, Child, Options) ->
     e2_supervisor:start_link(Module, children(Child), sup_options(Options)).
@@ -87,6 +88,12 @@ children(Mod) when is_atom(Mod) ->
     children({{Mod, start_link, []}, []});
 children(Other) -> error({badarg, Other}).
 
+update_registered(Module, Options) ->
+    case proplists:get_value(registered, Options) of
+        true -> [{registered, Module}|proplists:delete(registered, Options)];
+        _ -> Options
+    end.
+
 sup_options(Options) ->
     e2_opt:validate(Options, ?OPTIONS_SCHEMA),
     [simple_one_for_one|Options].
@@ -94,6 +101,8 @@ sup_options(Options) ->
 dispatch_init(Module, Args) ->
     handle_init_result(Module:init(Args)).
 
+handle_init_result({ok, Child}) ->
+    handle_init_result({ok, Child, []});
 handle_init_result({ok, Child, Options}) ->
     {ok, children(Child), sup_options(Options)};
 handle_init_result(ignore) -> ignore;
