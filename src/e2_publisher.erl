@@ -69,8 +69,9 @@ init({Module, Args, _Options}) ->
     {Reply, ModState} = e2_service_impl:init(Module, Args),
     e2_service_impl:init_reply(Reply, init_state(Module, ModState)).
 
-handle_msg({'DOWN', _Ref, process, Pid, _Info}, noreply, State) ->
-    {noreply, remove_all_subscribers(Pid, State)};
+handle_msg({'DOWN', _Ref, process, Pid, _Info}, noreply, State0) ->
+    {_, State} = remove_all_subscribers(Pid, State0),
+    {noreply, State};
 handle_msg({'$sub', Pattern, Compiled, Subscriber}, _From, State0) ->
     {Added, State} = add_subscriber(Pattern, Compiled, Subscriber, State0),
     {reply, Added, State};
