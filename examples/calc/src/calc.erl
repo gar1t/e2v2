@@ -11,8 +11,7 @@
 %%%-------------------------------------------------------------------
 
 start() ->
-    e2_application:start_dependencies(calc),
-    application:start(calc).
+    e2_application:start_with_dependencies(calc).
 
 eval(Expr) when is_binary(Expr) ->
     eval(binary_to_list(Expr));

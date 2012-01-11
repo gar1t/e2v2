@@ -10,22 +10,22 @@
 
 -export([start_link/1, get_val/1, incr_val/2]).
 
--export([init/1, handle_get_val/2, handle_incr_val/2]).
+-export([init/1, handle_msg/3]).
 
 start_link(NumAsStr) when is_list(NumAsStr) ->
     e2_service:start_link(?MODULE, NumAsStr).
 
 get_val(Service) ->
-    e2_service:call(Service, {handle_get_val, []}).
+    e2_service:call(Service, val).
 
-incr_val(Service, Incr) ->
-    e2_service:cast(Service, {handle_incr_val, [Incr]}).
+incr_val(Service, I) ->
+    e2_service:cast(Service, {incr, I}).
 
 init(NumAsStr) ->
     {ok, list_to_integer(NumAsStr)}.
 
-handle_get_val(_From, Val) ->
-    {reply, Val, Val}.
+handle_msg(val, _From, Val) ->
+    {reply, Val, Val};
+handle_msg({incr, I}, noreply, Val) ->
+    {noreply, Val + I}.
 
-handle_incr_val(Incr, Val) ->
-    {noreply, Incr + Val}.

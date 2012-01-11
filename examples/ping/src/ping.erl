@@ -7,8 +7,7 @@
 -export([init/0]).
 
 start() ->
-    application:start(sasl),
-    application:start(ping).
+    e2_application:start_with_dependencies(ping).
 
 ping() ->
     ping_server:ping().

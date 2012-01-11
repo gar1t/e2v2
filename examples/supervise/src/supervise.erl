@@ -1,12 +1,13 @@
 -module(supervise).
 
--export([permanent/0, temporary/0, transient/0]).
+-export([start/0, permanent/0, temporary/0, transient/0]).
 
 -import(error_logger, [info_msg/1, info_msg/2]).
 
-permanent() ->
-    application:start(sasl),
+start() ->
+    application:start(sasl).
 
+permanent() ->
     info_msg("Starting permanent_sup~n"),
     {ok, Sup} = permanent_sup:start_link(),
 
@@ -27,8 +28,6 @@ permanent() ->
     timer:sleep(100).
 
 temporary() ->
-    application:start(sasl),
-
     info_msg("Starting temporary_sup~n"),
     {ok, Sup} = temporary_sup:start_link(),
 
@@ -44,8 +43,6 @@ temporary() ->
     timer:sleep(100).
 
 transient() ->
-    application:start(sasl),
-
     info_msg("Starting transient_sup~n"),
     {ok, Sup} = transient_sup:start_link(),
 
