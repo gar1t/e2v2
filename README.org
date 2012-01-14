@@ -305,7 +305,7 @@ process. I think this is right, but it's implicit and needs to be documented.
 I'm a little unsure of the current publisher API return values, which are
 booleans, indicating whether the operation was successful or not.
 
-Sigh. I think I picked this up from the Redis API :(
+I think I picked this up from the Redis API :(
 
 I think what we want instead should be more explicit:
 
@@ -326,3 +326,53 @@ http://comments.gmane.org/gmane.comp.lang.erlang.patches/2588
 
 RC is proposing something similar to what we have for e2_supervisor. Let's sync
 up on that if/when it lands!
+** Virding's "state reconstruction" idea
+
+At EUC 2011, Robert mentioned a process type that was responsible for
+reconstructing state on process restart/recovery.
+
+I would have guessed this was a job for the process itself. What's the
+rationale for using a separate process?
+
+I can't imagine the recovered process would block until its state was available
+-- but what would it do as the state recover was underway? It's one or the
+other though.
+
+In e2, I would see this looking something like this:
+
+#+begin_src erlang
+  start_link() ->
+      e2_service:start_link(?MODULE).
+
+  init(_) ->
+      some_recovery_helper:start_link(),
+      {ok, recovery}.
+
+  handle_msg({recovered_state, State}, _From, recovery) ->
+      {noreply, State};
+  handle_msg(_Msg, _From, recovery) ->
+      {noreply, recovery};
+  handle_msg(do_something, _From, State) ->
+      handle_do_something(State).
+#+end_src
+
+This *could* be something baked into a new process type --
+e.g. e2_recoverable_service. The above code would be simplfied to this:
+
+#+begin_src erlang
+  start_link() ->
+      e2_recoverable_service:start_link(
+        ?MODULE, [{state_builder, some_recovery_helper}]).
+
+  handle_msg(do_something, _From, State) ->
+      handle_do_something(State).
+#+end_src
+
+The terms 'recovery' and 'state_builder' are debatable.
+
+I like formalizing this concept -- I think there are areas I could use this. It
+could also just be a pattern.
+
+This could also be a facility that uses a supervisor to start both the
+recovered process and the recovery helper. The start_link directly from a
+worker is not ideal.
