@@ -376,3 +376,15 @@ could also just be a pattern.
 This could also be a facility that uses a supervisor to start both the
 recovered process and the recovery helper. The start_link directly from a
 worker is not ideal.
+** Repeating tasks
+
+It should be possible to schedule a repeating task (ala gen_timer).
+
+I think this is belongs in e2_task -- there's still just one thing to do, you
+just need to do it on a schedule.
+
+This is sort of supported today with continue return type -- this is probably
+just a matter of adding a repeat option for the task and treat 'continue' as an
+implicit indicator of a repeat. {continue, State, Delay} would say, "skip the
+repeat interval and execute after Delay" -- you could use {continue, State, 0}
+to continue immediately.
