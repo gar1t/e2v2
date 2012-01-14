@@ -288,6 +288,12 @@ E.g. in Scala, what the hell is this:
 
 This smells, nay, reeks, of Scala's Java heritage.
 
+** Instant Grok
+
+It might not be instance Grok, but the hello work ring example is pretty
+compact and demonstrates the ability to start hundreds of thousands of
+processes trivially.
+
 * To Do / Issues
 
 ** Application init callback needs a param
