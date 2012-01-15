@@ -17,7 +17,7 @@
          call/3,
          cast/2]).
 
--export([init/1, handle_msg/3]).
+-export([init/1, handle_msg/3, terminate/2]).
 
 -export([behaviour_info/1]).
 
@@ -78,8 +78,8 @@ cast(Publisher, Msg) ->
 %%%===================================================================
 
 init({Module, Args, _Options}) ->
-    {Result, ModState} = e2_service_impl:dispatch_init(Module, Args),
-    e2_service_impl:init_result(Result, init_state(Module, ModState)).
+    e2_service_impl:set_trap_exit(Module),
+    dispatch_init(Module, Args).
 
 handle_msg({'DOWN', _Ref, process, Pid, _Info}, noreply, State0) ->
     {noreply, remove_all_subscribers(Pid, State0)};
@@ -94,12 +94,11 @@ handle_msg({'$unsub_all', Subscriber}, _From, State0) ->
 handle_msg({'$pub', Msg}, _From, State) ->
     publish_msg(Msg, State),
     {noreply, State};
-handle_msg(_Msg, _From, #state{handle_msg=false}=State) ->
-    {noreply, State};
-handle_msg(Msg, From, #state{mod=Module, mod_state=ModState0}=State) ->
-    {Result, ModState} =
-        e2_service_impl:dispatch_handle_msg(Module, Msg, From, ModState0),
-    e2_service_impl:handle_msg_result(Result, set_mod_state(ModState, State)).
+handle_msg(Msg, From, State) ->
+    dispatch_msg(Msg, From, State).
+
+terminate(Reason, State) ->
+    dispatch_terminate(Reason, State).
 
 %%%===================================================================
 %%% Internal functions
@@ -113,6 +112,10 @@ init_state(Module, ModState) ->
 
 exports_handle_msg(Module) ->
     erlang:function_exported(Module, handle_msg, 3).
+
+dispatch_init(Module, Args) ->
+    {Result, ModState} = e2_service_impl:dispatch_init(Module, Args),
+    e2_service_impl:init_result(Result, init_state(Module, ModState)).
 
 add_subscriber(Pattern, Compiled, Subscriber, #state{subs=Subs}=State) ->
     case lists:keyfind({Pattern, Subscriber}, 1, Subs) of
@@ -139,7 +142,7 @@ remove_all_subscribers(Subscriber, #state{subs=Subs0}=State) ->
 publish_msg(_Msg, []) -> ok;
 publish_msg(Msg, [{{_, Subscriber}, Compiled}|Rest]) ->
     case match_pattern(Msg, Compiled) of
-        true -> try_dispatch_msg(Msg, Subscriber);
+        true -> try_dispatch_published_msg(Msg, Subscriber);
         false -> ok
     end,
     publish_msg(Msg, Rest);
@@ -156,9 +159,9 @@ match_pattern(Msg, Compiled) ->
         [_] -> true
     end.
 
-try_dispatch_msg(Msg, Subscriber) ->
+try_dispatch_published_msg(Msg, Subscriber) ->
     try
-        dispatch_msg(Msg, Subscriber)
+        dispatch_published_msg(Msg, Subscriber)
     catch
         %% TODO: This should be a configurable policy (e.g. custom
         %% handlers, log and remove handler, etc.
@@ -167,14 +170,24 @@ try_dispatch_msg(Msg, Subscriber) ->
             error_logger:error_report({msg_dispatch, {T, E, ST}})
     end.
 
-dispatch_msg(Msg, Pid) when is_pid(Pid) ->
+dispatch_published_msg(Msg, Pid) when is_pid(Pid) ->
     erlang:send(Pid, Msg);
-dispatch_msg(Msg, Fun) when is_function(Fun) ->
+dispatch_published_msg(Msg, Fun) when is_function(Fun) ->
     Fun(Msg);
-dispatch_msg(Msg, {M, F}) ->
+dispatch_published_msg(Msg, {M, F}) ->
     erlang:apply(M, F, [Msg]);
-dispatch_msg(Msg, {M, F, A}) ->
+dispatch_published_msg(Msg, {M, F, A}) ->
     erlang:apply(M, F, A ++ [Msg]).
+
+dispatch_msg(_Msg, _From, #state{handle_msg=false}=State) ->
+    {noreply, State};
+dispatch_msg(Msg, From, #state{mod=Module, mod_state=ModState0}=State) ->
+    {Result, ModState} =
+        e2_service_impl:dispatch_handle_msg(Module, Msg, From, ModState0),
+    e2_service_impl:handle_msg_result(Result, set_mod_state(ModState, State)).
+
+dispatch_terminate(Reason, #state{mod=Module, mod_state=ModState}) ->
+    e2_service_impl:dispatch_terminate(Module, Reason, ModState).
 
 set_mod_state(ModState, State) ->
     State#state{mod_state=ModState}.

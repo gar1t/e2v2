@@ -27,6 +27,7 @@ start_link(Module, Args, Options) ->
 %%%===================================================================
 
 init({Module, Args}) ->
+    e2_service_impl:set_trap_exit(Module),
     dispatch_init(Module, Args, init_state(Module)).
 
 handle_msg('$handle_task', noreply, State) ->
@@ -78,10 +79,7 @@ handle_task_result(Other, _State) ->
     exit({bad_return_value, Other}).
 
 dispatch_terminate(Reason, #state{mod=Module, mod_state=ModState}) ->
-    case erlang:function_exported(Module, terminate, 2) of
-        true -> Module:terminate(Reason, ModState);
-        false -> ok
-    end.
+    e2_service_impl:dispatch_terminate(Module, Reason, ModState).
 
 set_mod_state(ModState, State) ->
     State#state{mod_state=ModState}.

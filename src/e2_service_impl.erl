@@ -11,7 +11,8 @@
 
 -export([split_options/2,
          dispatch_init/2, init_result/2,
-         dispatch_handle_msg/4, handle_msg_result/2]).
+         dispatch_handle_msg/4, handle_msg_result/2,
+         dispatch_terminate/3, set_trap_exit/1]).
 
 %%%===================================================================
 %%% API
@@ -52,6 +53,16 @@ handle_msg_result({reply, Reply, _, Timeout}, State) ->
     {reply, Reply, State, Timeout};
 handle_msg_result({stop, Reason, _}, State) ->
     {stop, Reason, State}.
+
+dispatch_terminate(Module, Reason, State) ->
+    case erlang:function_exported(Module, terminate, 2) of
+        true -> Module:terminate(Reason, State);
+        false -> ok
+    end.
+
+set_trap_exit(Module) ->
+    TerminateExported = erlang:function_exported(Module, terminate, 2),
+    process_flag(trap_exit, TerminateExported).
 
 %%%===================================================================
 %%% Internal functions

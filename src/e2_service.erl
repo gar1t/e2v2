@@ -47,9 +47,8 @@ cast(ServiceRef, Handler) ->
 %%%===================================================================
 
 init({Module, Args}) ->
-    State = init_state(Module),
-    maybe_trap_exit(State),
-    dispatch_init(Module, Args, State).
+    maybe_trap_exit(Module),
+    dispatch_init(Module, Args, init_state(Module)).
 
 handle_call({'$call', Handler}, From, State) ->
     dispatch_call(Handler, From, State).
@@ -93,7 +92,7 @@ gen_server_options(_Options) -> [].
 init_state(Module) when is_atom(Module) ->
     #state{mod=Module}.
 
-maybe_trap_exit(#state{mod=Module}) ->
+maybe_trap_exit(Module) ->
     case erlang:function_exported(Module, terminate, 2) of
         true -> process_flag(trap_exit, true);
         false -> ok
