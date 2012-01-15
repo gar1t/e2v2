@@ -394,3 +394,16 @@ just a matter of adding a repeat option for the task and treat 'continue' as an
 implicit indicator of a repeat. {continue, State, Delay} would say, "skip the
 repeat interval and execute after Delay" -- you could use {continue, State, 0}
 to continue immediately.
+** Logging
+
+Using error_logger for generic logging is awful. Just a rename would be a
+benefit.
+
+But a basic logging facility should do more than cleanup distractingly poor
+module names. In addition to straight pass through of logging to error_logger,
+e2 logging should:
+
+- Support a compact format for logging
+- Make it trivial to plugin different handlers (e.g. syslog)
+- Otherwise keep it drop dead simple (i.e. avoid any log4j moments of
+  inspiration)
