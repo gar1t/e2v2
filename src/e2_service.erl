@@ -93,18 +93,18 @@ gen_server_options(_Options) -> [].
 init_state(Module) when is_atom(Module) ->
     #state{mod=Module}.
 
-maybe_trap_exit(#state{mod=Mod}) ->
-    case e2_util:optional_function(Mod, terminate, 2) of
-        undefined -> ok;
-        _ -> process_flag(trap_exit, true)
+maybe_trap_exit(#state{mod=Module}) ->
+    case erlang:function_exported(Module, terminate, 2) of
+        true -> process_flag(trap_exit, true);
+        false -> ok
     end.
 
 dispatch_init(Module, Args, State) ->
-    case e2_util:optional_function(Module, init, 1) of
-        undefined ->
-            handle_init_result({ok, Args}, State);
-        Init ->
-            handle_init_result(e2_util:apply_handler(Init, [Args]), State)
+    case erlang:function_exported(Module, init, 1) of
+        true ->
+            handle_init_result(Module:init(Args), State);
+        false ->
+            handle_init_result({ok, Args}, State)
     end.
 
 handle_init_result({ok, ModState}, State) ->
@@ -170,11 +170,10 @@ handle_info_result({stop, Reason, ModState}, State) ->
 handle_info_result(Other, _State) ->
     exit({bad_return_value, Other}).
 
-dispatch_terminate(Reason, #state{mod=Mod, mod_state=ModState}) ->
-    case e2_util:optional_function(Mod, terminate, 2) of
-        undefined -> ok;
-        Terminate ->
-            e2_util:apply_handler(Terminate, [Reason, ModState])
+dispatch_terminate(Reason, #state{mod=Module, mod_state=ModState}) ->
+    case erlang:function_exported(Module, terminate, 2) of
+        true -> Module:terminate(Reason, ModState);
+        false -> ok
     end.
 
 dispatch_msg_noreply(Module, Msg, ModState) ->

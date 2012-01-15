@@ -23,7 +23,7 @@
 
 behaviour_info(callbacks) -> [].
 
--record(state, {mod, modstate, handle_msg, subs}).
+-record(state, {mod, mod_state, handle_msg, subs}).
 
 %%%===================================================================
 %%% API
@@ -78,8 +78,8 @@ cast(Publisher, Msg) ->
 %%%===================================================================
 
 init({Module, Args, _Options}) ->
-    {Reply, ModState} = e2_service_impl:init(Module, Args),
-    e2_service_impl:init_reply(Reply, init_state(Module, ModState)).
+    {Result, ModState} = e2_service_impl:dispatch_init(Module, Args),
+    e2_service_impl:init_result(Result, init_state(Module, ModState)).
 
 handle_msg({'DOWN', _Ref, process, Pid, _Info}, noreply, State0) ->
     {_, State} = remove_all_subscribers(Pid, State0),
@@ -101,10 +101,10 @@ handle_msg({'$pub', Msg}, _From, State) ->
     {noreply, State};
 handle_msg(_Msg, _From, #state{handle_msg=false}=State) ->
     {noreply, State};
-handle_msg(Msg, From, #state{mod=Module, modstate=ModState0}=State) ->
-    {Reply, ModState} =
-        e2_service_impl:handle_msg(Module, Msg, From, ModState0),
-    e2_service_impl:handle_msg_reply(Reply, State#state{modstate=ModState}).
+handle_msg(Msg, From, #state{mod=Module, mod_state=ModState0}=State) ->
+    {Result, ModState} =
+        e2_service_impl:dispatch_handle_msg(Module, Msg, From, ModState0),
+    e2_service_impl:handle_msg_result(Result, set_mod_state(ModState, State)).
 
 %%%===================================================================
 %%% Internal functions
@@ -112,7 +112,7 @@ handle_msg(Msg, From, #state{mod=Module, modstate=ModState0}=State) ->
 
 init_state(Module, ModState) ->
     #state{mod=Module,
-           modstate=ModState,
+           mod_state=ModState,
            handle_msg=exports_handle_msg(Module),
            subs=[]}.
 
@@ -180,3 +180,6 @@ dispatch_msg(Msg, {M, F}) ->
     erlang:apply(M, F, [Msg]);
 dispatch_msg(Msg, {M, F, A}) ->
     erlang:apply(M, F, A ++ [Msg]).
+
+set_mod_state(ModState, State) ->
+    State#state{mod_state=ModState}.

@@ -10,7 +10,7 @@
 
 behaviour_info(callbacks) -> [{handle_task, 1}].
 
--record(state, {mod, mod_state, handle_task}).
+-record(state, {mod, mod_state}).
 
 %%%===================================================================
 %%% API
@@ -27,7 +27,7 @@ start_link(Module, Args, Options) ->
 %%%===================================================================
 
 init({Module, Args}) ->
-    handle_init_result(dispatch_init(Module, Args), Module).
+    dispatch_init(Module, Args, init_state(Module)).
 
 handle_msg('$handle_task', noreply, State) ->
     dispatch_handle_task(State).
@@ -39,17 +39,22 @@ terminate(Reason, State) ->
 %%% Internal functionsa
 %%%===================================================================
 
-dispatch_init(Module, Args) ->
-    case e2_util:optional_function(Module, init, 1) of
-        undefined -> {ok, Args};
-        Init -> Init(Args)
+init_state(Module) ->
+    #state{mod=Module}.
+
+dispatch_init(Module, Args, State) ->
+    case erlang:function_exported(Module, init, 1) of
+        true ->
+            handle_init_result(Module:init(Args), State);
+        false ->
+            handle_init_result({ok, Args}, State)
     end.
 
-handle_init_result({ok, ModState}, Module) ->
-    {ok, init_state(Module, ModState), '$handle_task'};
+handle_init_result({ok, ModState}, State) ->
+    {ok, set_mod_state(ModState, State), '$handle_task'};
 handle_init_result({ok, ModState, DelayTask}, Module) ->
     erlang:send_after(DelayTask, self(), '$handle_task'),
-    {ok, init_state(Module, ModState)};
+    {ok, set_mod_state(ModState, Module)};
 handle_init_result({stop, Reason}, _) ->
     {stop, Reason};
 handle_init_result(ignore, _) ->
@@ -57,13 +62,8 @@ handle_init_result(ignore, _) ->
 handle_init_result(Other, _) ->
     error({bad_return_value, Other}).
 
-init_state(Module, ModState) ->
-    #state{mod=Module,
-           mod_state=ModState,
-           handle_task=e2_util:required_function(Module, handle_task, 1)}.
-
-dispatch_handle_task(#state{handle_task=Handle, mod_state=ModState}=State) ->
-    handle_task_result(Handle(ModState), State).
+dispatch_handle_task(#state{mod=Module, mod_state=ModState}=State) ->
+    handle_task_result(Module:handle_task(ModState), State).
 
 handle_task_result({continue, ModState}, State) ->
     {noreply, set_mod_state(ModState, State), '$handle_task'};
@@ -77,11 +77,10 @@ handle_task_result({stop, Reason, ModState}, State) ->
 handle_task_result(Other, _State) ->
     exit({bad_return_value, Other}).
 
-dispatch_terminate(Reason, #state{mod=Mod, mod_state=ModState}) ->
-    case e2_util:optional_function(Mod, terminate, 2) of
-        undefined -> ok;
-        Terminate ->
-            e2_util:apply_handler(Terminate, [Reason, ModState])
+dispatch_terminate(Reason, #state{mod=Module, mod_state=ModState}) ->
+    case erlang:function_exported(Module, terminate, 2) of
+        true -> Module:terminate(Reason, ModState);
+        false -> ok
     end.
 
 set_mod_state(ModState, State) ->

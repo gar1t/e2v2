@@ -10,8 +10,8 @@
 -module(e2_service_impl).
 
 -export([split_options/2,
-         init/2, init_reply/2,
-         handle_msg/4, handle_msg_reply/2]).
+         dispatch_init/2, init_result/2,
+         dispatch_handle_msg/4, handle_msg_result/2]).
 
 %%%===================================================================
 %%% API
@@ -20,37 +20,37 @@
 split_options(Module, Options) ->
     split_options(Module, Options, [], []).
 
-init(Module, Args) ->
-    case e2_util:optional_function(Module, init, 1) of
-        undefined ->
-            handle_init_result({ok, Args});
-        Init ->
-            handle_init_result(e2_util:apply_handler(Init, [Args]))
+dispatch_init(Module, Args) ->
+    case erlang:function_exported(Module, init, 1) of
+        true ->
+            handle_dispatch_init(Module:init(Args));
+        false ->
+            handle_dispatch_init({ok, Args})
     end.
 
-init_reply({ok, _}, State) ->
+init_result({ok, _}, State) ->
     {ok, State};
-init_reply({ok, _, Timeout}, State) when is_integer(Timeout) ->
+init_result({ok, _, Timeout}, State) when is_integer(Timeout) ->
     {ok, State, Timeout};
-init_reply({ok, _, FirstMsg}, State) ->
+init_result({ok, _, FirstMsg}, State) ->
     {ok, State, FirstMsg};
-init_reply({stop, Reason}, _) ->
+init_result({stop, Reason}, _) ->
     {stop, Reason};
-init_reply(ignore, _) ->
+init_result(ignore, _) ->
     ignore.
 
-handle_msg(Module, Msg, From, State) ->
-    handle_msg_result(Module:handle_msg(Msg, From, State)).
+dispatch_handle_msg(Module, Msg, From, State) ->
+    handle_dispatch_handle_msg(Module:handle_msg(Msg, From, State)).
 
-handle_msg_reply({noreply, _}, State) ->
+handle_msg_result({noreply, _}, State) ->
     {noreply, State};
-handle_msg_reply({noreply, _, Timeout}, State) ->
+handle_msg_result({noreply, _, Timeout}, State) ->
     {noreply, State, Timeout};
-handle_msg_reply({reply, Reply, _}, State) ->
+handle_msg_result({reply, Reply, _}, State) ->
     {reply, Reply, State};
-handle_msg_reply({reply, Reply, _, Timeout}, State) ->
+handle_msg_result({reply, Reply, _, Timeout}, State) ->
     {reply, Reply, State, Timeout};
-handle_msg_reply({stop, Reason, _}, State) ->
+handle_msg_result({stop, Reason, _}, State) ->
     {stop, Reason, State}.
 
 %%%===================================================================
@@ -66,28 +66,28 @@ split_options(Module, [{registered, Name}|Rest], ServiceOpts, ImplOpts) ->
 split_options(Module, [O|Rest], ServiceOpts, ImplOpts) ->
     split_options(Module, Rest, ServiceOpts, [O|ImplOpts]).
 
-handle_init_result({ok, State}) ->
+handle_dispatch_init({ok, State}) ->
     {{ok, State}, State};
-handle_init_result({ok, State, Timeout}) when is_integer(Timeout) ->
+handle_dispatch_init({ok, State, Timeout}) when is_integer(Timeout) ->
     {{ok, State, Timeout}, State};
-handle_init_result({ok, State, FirstMsg}) ->
+handle_dispatch_init({ok, State, FirstMsg}) ->
     {{ok, State, FirstMsg}, State};
-handle_init_result({stop, Reason}) ->
+handle_dispatch_init({stop, Reason}) ->
     {{stop, Reason}, undefined};
-handle_init_result(ignore) ->
+handle_dispatch_init(ignore) ->
     {ignore, undefined};
-handle_init_result(Other) ->
+handle_dispatch_init(Other) ->
     exit({bad_return_value, Other}).
 
-handle_msg_result({noreply, State}) ->
+handle_dispatch_handle_msg({noreply, State}) ->
     {{noreply, State}, State};
-handle_msg_result({noreply, State, Timeout}) ->
+handle_dispatch_handle_msg({noreply, State, Timeout}) ->
     {{noreply, State, Timeout}, State};
-handle_msg_result({reply, Reply, State}) ->
+handle_dispatch_handle_msg({reply, Reply, State}) ->
     {{reply, Reply, State}, State};
-handle_msg_result({reply, Reply, State, Timeout}) ->
+handle_dispatch_handle_msg({reply, Reply, State, Timeout}) ->
     {{reply, Reply, Timeout}, State};
-handle_msg_result({stop, Reason, State}) ->
+handle_dispatch_handle_msg({stop, Reason, State}) ->
     {{stop, Reason, State}, State};
-handle_msg_result(Other) ->
+handle_dispatch_handle_msg(Other) ->
     exit({bad_result_value, Other}).
