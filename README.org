@@ -306,24 +306,6 @@ Support two forms:
 
 If a service exports terminate/2, exits are automatically trapped for the
 process. I think this is right, but it's implicit and needs to be documented.
-** Publisher API
-
-I'm a little unsure of the current publisher API return values, which are
-booleans, indicating whether the operation was successful or not.
-
-I think I picked this up from the Redis API :(
-
-I think what we want instead should be more explicit:
-
-- ok to indicate success
-- {error, Reason} to indicate failure
-
-Or, rather, any() as the formal return value (ok by convention) and raise an
-exception on error.
-
-For idempotent operations, I don't know if we care about distinguishing the
-result. I.e. if we're not technically adding because a subscriber already
-exists, who cares?
 ** Upcoming supervisor proplist support
 
 In this thread:

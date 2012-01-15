@@ -82,20 +82,15 @@ init({Module, Args, _Options}) ->
     e2_service_impl:init_result(Result, init_state(Module, ModState)).
 
 handle_msg({'DOWN', _Ref, process, Pid, _Info}, noreply, State0) ->
-    {_, State} = remove_all_subscribers(Pid, State0),
-    {noreply, State};
+    {noreply, remove_all_subscribers(Pid, State0)};
 handle_msg({'$sub', Pattern, Compiled, Subscriber}, _From, State0) ->
-    {Added, State} = add_subscriber(Pattern, Compiled, Subscriber, State0),
-    {reply, Added, State};
+    {reply, ok, add_subscriber(Pattern, Compiled, Subscriber, State0)};
 handle_msg({'$sub_all', Subscriber}, _From, State0) ->
-    {Added, State} = add_subscriber(all, all, Subscriber, State0),
-    {reply, Added, State};
+    {reply, ok, add_subscriber(all, all, Subscriber, State0)};
 handle_msg({'$unsub', Pattern, Subscriber}, _From, State0) ->
-    {Removed, State} = remove_subscriber(Pattern, Subscriber, State0),
-    {reply, Removed, State};
+    {reply, ok, remove_subscriber(Pattern, Subscriber, State0)};
 handle_msg({'$unsub_all', Subscriber}, _From, State0) ->
-    {Removed, State} = remove_all_subscribers(Subscriber, State0),
-    {reply, Removed, State};
+    {reply, ok, remove_all_subscribers(Subscriber, State0)};
 handle_msg({'$pub', Msg}, _From, State) ->
     publish_msg(Msg, State),
     {noreply, State};
@@ -123,9 +118,9 @@ add_subscriber(Pattern, Compiled, Subscriber, #state{subs=Subs}=State) ->
     case lists:keyfind({Pattern, Subscriber}, 1, Subs) of
         false ->
             maybe_monitor(Subscriber),
-            {true, State#state{subs=[{{Pattern, Subscriber}, Compiled}|Subs]}};
+            State#state{subs=[{{Pattern, Subscriber}, Compiled}|Subs]};
         _ ->
-            {false, State}
+            State
     end.
 
 maybe_monitor(Subscriber) when is_pid(Subscriber) ->
@@ -134,12 +129,12 @@ maybe_monitor(_) -> ok.
 
 remove_subscriber(Pattern, Subscriber, #state{subs=Subs0}=State) ->
     Subs = lists:keydelete({Pattern, Subscriber}, 1, Subs0),
-    {length(Subs0) /= length(Subs), State#state{subs=Subs}}.
+    State#state{subs=Subs}.
 
 remove_all_subscribers(Subscriber, #state{subs=Subs0}=State) ->
     Subs = lists:filter(fun({{_, S}, _}) when S =:= Subscriber -> false;
                            (_) -> true end, Subs0),
-    {length(Subs0) /= length(Subs), State#state{subs=Subs}}.
+    State#state{subs=Subs}.
 
 publish_msg(_Msg, []) -> ok;
 publish_msg(Msg, [{{_, Subscriber}, Compiled}|Rest]) ->
