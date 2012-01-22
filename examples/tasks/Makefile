@@ -7,4 +7,4 @@ clean:
 	$(REBAR) clean
 
 shell: compile
-	erl -pa ebin ../../ebin -s tasks
+	erl -pa ebin -s tasks
