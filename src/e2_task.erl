@@ -2,7 +2,8 @@
 
 -behavior(e2_service).
 
--export([start_link/2, start_link/3]).
+-export([start_link/2, start_link/3,
+         call/2, call/3, cast/2]).
 
 -export([init/1, handle_msg/3, terminate/2]).
 
@@ -23,6 +24,15 @@ start_link(Module, Args, Options) ->
     {ServiceOpts, TaskOpts} = e2_service_impl:split_options(Module, Options),
     e2_service:start_link(?MODULE, {Module, Args, TaskOpts}, ServiceOpts).
 
+call(Task, Msg) ->
+    e2_service:call(Task, Msg).
+
+call(Task, Msg, Timeout) ->
+    e2_service:call(Task, Msg, Timeout).
+
+cast(Task, Msg) ->
+    e2_service:cast(Task, Msg).
+
 %%%===================================================================
 %%% e2_service callbacks
 %%%===================================================================
@@ -32,7 +42,11 @@ init({Module, Args, TaskOpts}) ->
     dispatch_init(Module, Args, TaskOpts, init_state(Module)).
 
 handle_msg('$handle_task', noreply, State) ->
-    dispatch_handle_task(set_start(State)).
+    dispatch_handle_task(set_start(State));
+handle_msg(Msg, From, #state{mod=Module, mod_state=ModState0}=State) ->
+    {Result, ModState} =
+        e2_service_impl:dispatch_handle_msg(Module, Msg, From, ModState0),
+    e2_service_impl:handle_msg_result(Result, set_mod_state(ModState, State)).
 
 terminate(Reason, State) ->
     dispatch_terminate(Reason, State).
