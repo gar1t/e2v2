@@ -1,6 +1,11 @@
-==============
-Welcome to e2
-==============
+=======================
+Reliable Software, Fast
+=======================
+
+`e2` is a productivity extension to the Erlang programming language, which
+allows you to build incredibly reliable software with very little effort.
+
+
 
 `e2` is an experimental project that aims to simplify Erlang/OTP development
 and improve developer productivity.

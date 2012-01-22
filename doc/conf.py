@@ -43,8 +43,8 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'e2 Documentation'
-copyright = u'2011, Garrett Smith'
+project = u'e2'
+copyright = u'2012, Garrett Smith'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -110,14 +110,14 @@ html_theme = 'sphinxdoc'
 
 # The name for this set of Sphinx documents.  If None, it defaults to
 # "<project> v<release> documentation".
-html_title = "e2 Documentation"
+html_title = "e2"
 
 # A shorter title for the navigation bar.  Default is the same as html_title.
 #html_short_title = None
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
-#html_logo = None
+html_logo = "e2logo.png"
 
 # The name of an image file (within the static path) to use as favicon of the
 # docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
@@ -187,7 +187,7 @@ htmlhelp_basename = 'e2'
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title, author, documentclass [howto/manual]).
 latex_documents = [
-  ('index', 'e2.tex', u'e2 Documentation',
+  ('index', 'e2.tex', u'e2',
    u'Garrett Smith', 'manual'),
 ]
 
@@ -220,6 +220,6 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    ('index', 'e2', u'e2 Documentation',
+    ('index', 'e2', u'e2',
      [u'Garrett Smith'], 1)
 ]
