@@ -41,7 +41,7 @@ init({Module, Args, TaskOpts}) ->
     e2_service_impl:set_trap_exit(Module),
     dispatch_init(Module, Args, TaskOpts, init_state(Module)).
 
-handle_msg('$handle_task', noreply, State) ->
+handle_msg('$task', noreply, State) ->
     dispatch_handle_task(set_start(State));
 handle_msg(Msg, From, #state{mod=Module, mod_state=ModState0}=State) ->
     {Result, ModState} =
@@ -77,16 +77,17 @@ timing_spec(Options) ->
     end.
 
 handle_init_result({ok, ModState}, State) ->
-    {ok, set_mod_state(ModState, State), '$handle_task'};
+    {ok, set_mod_state(ModState, State), {handle_msg, '$task'}};
 handle_init_result({ok, ModState, {0, Repeat}}, State) ->
-    {ok, set_repeat(Repeat, set_mod_state(ModState, State)), '$handle_task'};
+    {ok, set_repeat(Repeat, set_mod_state(ModState, State)),
+     {handle_msg, '$task'}};
 handle_init_result({ok, ModState, {Delay, Repeat}}, State) ->
-    erlang:send_after(Delay, self(), '$handle_task'),
+    erlang:send_after(Delay, self(), '$task'),
     {ok, set_repeat(Repeat, set_mod_state(ModState, State))};
 handle_init_result({ok, ModState, 0}, State) ->
-    {ok, set_mod_state(ModState, State), '$handle_task'};
+    {ok, set_mod_state(ModState, State), {handle_msg, '$task'}};
 handle_init_result({ok, ModState, Delay}, Module) ->
-    erlang:send_after(Delay, self(), '$handle_task'),
+    erlang:send_after(Delay, self(), '$task'),
     {ok, set_mod_state(ModState, Module)};
 handle_init_result({stop, Reason}, _) ->
     {stop, Reason};
@@ -101,13 +102,13 @@ dispatch_handle_task(#state{mod=Module, mod_state=ModState}=State) ->
 handle_task_result({continue, ModState}, State) ->
     case repeat_delay(State) of
         0 ->
-            {noreply, set_mod_state(ModState, State), '$handle_task'};
+            {noreply, set_mod_state(ModState, State), {handle_msg, '$task'}};
         Delay ->
-            erlang:send_after(Delay, self(), '$handle_task'),
+            erlang:send_after(Delay, self(), '$task'),
             {noreply, set_mod_state(ModState, State)}
     end;
 handle_task_result({continue, ModState, Delay}, State) ->
-    erlang:send_after(Delay, self(), '$handle_task'),
+    erlang:send_after(Delay, self(), '$task'),
     {noreply, set_mod_state(ModState, State)};
 handle_task_result({stop, Reason}, State) ->
     {stop, Reason, State};
