@@ -11,9 +11,9 @@ clean:
 shell: compile
 	@if [ -f priv/calc.config ]; \
 	then \
-	erl -pa ebin ../../ebin -s calc -config priv/calc; \
+	erl -pa ebin -s calc -config priv/calc; \
 	else \
-	erl -pa ebin ../../ebin -s calc; \
+	erl -pa ebin -s calc; \
 	fi
 
 test:

@@ -7,4 +7,4 @@ clean:
 	$(REBAR) clean
 
 shell: compile
-	erl -pa ebin ../../ebin -s pubsub
+	erl -pa ebin -s pubsub

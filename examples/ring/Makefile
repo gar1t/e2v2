@@ -7,4 +7,4 @@ clean:
 	$(REBAR) clean
 
 shell: compile
-	erl +P 1000000 -pa ebin ../../ebin
+	erl +P 1000000 -pa ebin

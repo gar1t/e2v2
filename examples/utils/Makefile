@@ -7,7 +7,7 @@ clean:
 	$(REBAR) clean
 
 shell: compile
-	erl -pa ebin ../../ebin -s utils
+	erl -pa ebin -s utils
 
 test:
 	$(REBAR) test
