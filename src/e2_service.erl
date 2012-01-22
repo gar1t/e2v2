@@ -108,8 +108,12 @@ dispatch_init(Module, Args, State) ->
 
 handle_init_result({ok, ModState}, State) ->
     {ok, set_mod_state(ModState, State)};
-handle_init_result({ok, ModState, FirstMsg}, State) ->
-    {ok, set_timeout_msg(FirstMsg, set_mod_state(ModState, State)), 0};
+handle_init_result({ok, ModState, {handle_msg, Msg}}, State) ->
+    {ok, set_timeout_msg(Msg, set_mod_state(ModState, State)), 0};
+handle_init_result({ok, ModState, {timeout, Timeout}}, State) ->
+    {ok, set_mod_state(ModState, State), Timeout};
+handle_init_result({ok, ModState, hibernate}, State) ->
+    {ok, set_mod_state(ModState, State), hibernate};
 handle_init_result({stop, Reason}, _State) ->
     {stop, Reason};
 handle_init_result(ignore, _State) ->
@@ -124,8 +128,18 @@ handle_call_result({reply, Reply, ModState}, State) ->
     {reply, Reply, set_mod_state(ModState, State)};
 handle_call_result({noreply, ModState}, State) ->
     {noreply, set_mod_state(ModState, State)};
-handle_call_result({noreply, ModState, NextMsg}, State) ->
-    {noreply, set_timeout_msg(NextMsg, set_mod_state(ModState, State)), 0};
+handle_call_result({reply, Reply, ModState, {handle_msg, Msg}}, State) ->
+    {reply, Reply, set_timeout_msg(Msg, set_mod_state(ModState, State)), 0};
+handle_call_result({reply, Reply, ModState, {timeout, Timeout}}, State) ->
+    {reply, Reply, set_mod_state(ModState, State), Timeout};
+handle_call_result({reply, Reply, ModState, hibernate}, State) ->
+    {reply, Reply, set_mod_state(ModState, State), hibernate};
+handle_call_result({noreply, ModState, {handle_msg, Msg}}, State) ->
+    {noreply, set_timeout_msg(Msg, set_mod_state(ModState, State)), 0};
+handle_call_result({noreply, ModState, {timeout, Timeout}}, State) ->
+    {noreply, set_mod_state(ModState, State), Timeout};
+handle_call_result({noreply, ModState, hibernate}, State) ->
+    {noreply, set_mod_state(ModState, State), hibernate};
 handle_call_result({stop, Reason, ModState}, State) ->
     {stop, Reason, set_mod_state(ModState, State)};
 handle_call_result({stop, Reason, Reply, ModState}, State) ->
@@ -138,32 +152,49 @@ dispatch_cast(Msg, #state{mod=Module, mod_state=ModState}=State) ->
 
 handle_cast_result({noreply, ModState}, State) ->
     {noreply, set_mod_state(ModState, State)};
-handle_cast_result({noreply, ModState, NextMsg}, State) ->
-    {noreply, set_timeout_msg(NextMsg, set_mod_state(ModState, State)), 0};
 handle_cast_result({reply, _Reply, ModState}, State) ->
     {noreply, set_mod_state(ModState, State)};
-handle_cast_result({reply, _Reply, ModState, NextMsg}, State) ->
+handle_cast_result({noreply, ModState, {handle_msg, NextMsg}}, State) ->
     {noreply, set_timeout_msg(NextMsg, set_mod_state(ModState, State)), 0};
+handle_cast_result({noreply, ModState, {timeout, Timeout}}, State) ->
+    {noreply, set_mod_state(ModState, State), Timeout};
+handle_cast_result({noreply, ModState, hibernate}, State) ->
+    {noreply, set_mod_state(ModState, State), hibernate};
+handle_cast_result({reply, _Reply, ModState, {handle_msg, Msg}}, State) ->
+    {noreply, set_timeout_msg(Msg, set_mod_state(ModState, State)), 0};
+handle_cast_result({reply, _Reply, ModState, {timeout, Timeout}}, State) ->
+    {noreply, set_mod_state(ModState, State), Timeout};
+handle_cast_result({reply, _Reply, ModState, hibernate}, State) ->
+    {noreply, set_mod_state(ModState, State), hibernate};
 handle_cast_result({stop, Reason, ModState}, State) ->
     {stop, Reason, set_mod_state(ModState, State)};
 handle_cast_result(Other, _State) ->
     exit({bad_return_value, Other}).
 
 dispatch_info(timeout, #state{mod=Module, mod_state=ModState,
-                              timeout_msg=Msg}=State) when Msg =/= undefined ->
-    handle_info_result(
-      dispatch_msg_noreply(Module, Msg, ModState), clear_timeout_msg(State));
+                              timeout_msg=Msg}=State)
+  when Msg =/= undefined ->
+    handle_info_result(dispatch_msg_noreply(Module, Msg, ModState),
+                       clear_timeout_msg(State));
 dispatch_info(Msg, #state{mod=Module, mod_state=ModState}=State) ->
     handle_info_result(dispatch_msg_noreply(Module, Msg, ModState), State).
 
 handle_info_result({noreply, ModState}, State) ->
     {noreply, set_mod_state(ModState, State)};
-handle_info_result({noreply, ModState, NextMsg}, State) ->
-    {noreply, set_timeout_msg(NextMsg, set_mod_state(ModState, State)), 0};
 handle_info_result({reply, _Reply, ModState}, State) ->
     {noreply, set_mod_state(ModState, State)};
-handle_info_result({reply, _Reply, ModState, NextMsg}, State) ->
-    {noreply, set_timeout_msg(NextMsg, set_mod_state(ModState, State)), 0};
+handle_info_result({noreply, ModState, {handle_msg, Msg}}, State) ->
+    {noreply, set_timeout_msg(Msg, set_mod_state(ModState, State)), 0};
+handle_info_result({noreply, ModState, {timeout, Timeout}}, State) ->
+    {noreply, set_mod_state(ModState, State), Timeout};
+handle_info_result({noreply, ModState, hibernate}, State) ->
+    {noreply, set_mod_state(ModState, State), hibernate};
+handle_info_result({reply, _Reply, ModState, {handle_msg, Msg}}, State) ->
+    {noreply, set_timeout_msg(Msg, set_mod_state(ModState, State)), 0};
+handle_info_result({reply, _Reply, ModState, {timeout, Timeout}}, State) ->
+    {noreply, set_mod_state(ModState, State), Timeout};
+handle_info_result({reply, _Reply, ModState, hibernate}, State) ->
+    {noreply, set_mod_state(ModState, State), hibernate};
 handle_info_result({stop, Reason, ModState}, State) ->
     {stop, Reason, set_mod_state(ModState, State)};
 handle_info_result(Other, _State) ->

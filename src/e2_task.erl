@@ -113,6 +113,8 @@ handle_task_result({stop, Reason}, State) ->
     {stop, Reason, State};
 handle_task_result({stop, Reason, ModState}, State) ->
     {stop, Reason, set_mod_state(ModState, State)};
+handle_task_result({hibernate, ModState}, State) ->
+    {noreply, set_mod_state(ModState, State), hibernate};
 handle_task_result(Other, _State) ->
     exit({bad_return_value, Other}).
 

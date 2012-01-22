@@ -31,8 +31,8 @@ eval(Expr) when is_list(Expr) ->
 %%% Application callbacks
 %%%-------------------------------------------------------------------
 
-init() -> {ok, [{calc_handler_sup, [supervisor]},
-                calc_server]}.
+init() ->
+    {ok, [{calc_handler_sup, [supervisor]}, calc_server]}.
 
 %%%-------------------------------------------------------------------
 %%% Internal functions
