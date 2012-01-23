@@ -2,7 +2,7 @@
 
 -behaviour(gen_server).
 
--export([start_link/2, start_link/3, call/2, call/3, cast/2]).
+-export([start_link/2, start_link/3, call/2, call/3, cast/2, reply/2]).
 
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
          terminate/2, code_change/3]).
@@ -41,6 +41,9 @@ call(ServiceRef, Handler, Timeout) ->
 
 cast(ServiceRef, Handler) ->
     gen_server:cast(ServiceRef, {'$cast', Handler}).
+
+reply(Client, Reply) ->
+    gen_server:reply(Client, Reply).
 
 %%%===================================================================
 %%% gen_server callbacks
