@@ -2,7 +2,7 @@
 
 -behavior(e2_service).
 
--export([start_link/2, start_link/3,
+-export([start_link/2, start_link/3, run/1,
          call/2, call/3, cast/2]).
 
 -export([init/1, handle_msg/3, terminate/2]).
@@ -23,6 +23,9 @@ start_link(Module, Args) ->
 start_link(Module, Args, Options) ->
     {ServiceOpts, TaskOpts} = e2_service_impl:split_options(Module, Options),
     e2_service:start_link(?MODULE, {Module, Args, TaskOpts}, ServiceOpts).
+
+run(Task) ->
+    e2_service:call(Task, '$task').
 
 call(Task, Msg) ->
     e2_service:call(Task, Msg).
