@@ -61,12 +61,14 @@ terminate(Reason, State) ->
 init_state(Module) ->
     #state{mod=Module}.
 
-dispatch_init(Module, Args, TaskOpts, State) ->
+dispatch_init(Module, Args, Options, State) ->
+    handle_init_result(
+      dispatch_init(Module, Args), timing_spec(Options), State).
+
+dispatch_init(Module, Args) ->
     case erlang:function_exported(Module, init, 1) of
-        true ->
-            handle_init_result(Module:init(Args), State);
-        false ->
-            handle_init_result({ok, Args, timing_spec(TaskOpts)}, State)
+        true -> Module:init(Args);
+        false -> {ok, Args}
     end.
 
 timing_spec(Options) ->
@@ -79,25 +81,28 @@ timing_spec(Options) ->
         {Delay, Repeat} -> {Delay, Repeat}
     end.
 
-handle_init_result({ok, ModState}, State) ->
-    {ok, set_mod_state(ModState, State), {handle_msg, '$task'}};
+handle_init_result({ok, ModState}, OptionsTiming, State) ->
+    handle_init_result({ok, ModState, OptionsTiming}, State);
+handle_init_result({ok, ModState, Timing}, _OptionsTiming, State) ->
+    handle_init_result({ok, ModState, Timing}, State);
+handle_init_result({stop, Reason}, _OptionsTiming, _State) ->
+    {stop, Reason};
+handle_init_result(ignore, _OptionsTiming, _State) ->
+    ignore;
+handle_init_result(Other, _OptionsTiming, _State) ->
+    error({bad_return_value, Other}).
+
 handle_init_result({ok, ModState, {0, Repeat}}, State) ->
-    {ok, set_repeat(Repeat, set_mod_state(ModState, State)),
+    {ok, State#state{repeat=Repeat, mod_state=ModState},
      {handle_msg, '$task'}};
 handle_init_result({ok, ModState, {Delay, Repeat}}, State) ->
     erlang:send_after(Delay, self(), '$task'),
-    {ok, set_repeat(Repeat, set_mod_state(ModState, State))};
+    {ok, State#state{repeat=Repeat, mod_state=ModState}};
 handle_init_result({ok, ModState, 0}, State) ->
-    {ok, set_mod_state(ModState, State), {handle_msg, '$task'}};
-handle_init_result({ok, ModState, Delay}, Module) ->
+    {ok, State#state{mod_state=ModState}, {handle_msg, '$task'}};
+handle_init_result({ok, ModState, Delay}, State) ->
     erlang:send_after(Delay, self(), '$task'),
-    {ok, set_mod_state(ModState, Module)};
-handle_init_result({stop, Reason}, _) ->
-    {stop, Reason};
-handle_init_result(ignore, _) ->
-    ignore;
-handle_init_result(Other, _) ->
-    error({bad_return_value, Other}).
+    {ok, State#state{mod_state=ModState}}.
 
 dispatch_handle_task(#state{mod=Module, mod_state=ModState}=State) ->
     handle_task_result(Module:handle_task(ModState), State).
@@ -132,9 +137,6 @@ repeat_delay(#state{repeat=Interval, start=Start}) ->
 
 set_mod_state(ModState, State) ->
     State#state{mod_state=ModState}.
-
-set_repeat(Repeat, State) ->
-    State#state{repeat=Repeat}.
 
 set_start(#state{start=undefined}=State) ->
     State#state{start=timestamp()};

@@ -2,10 +2,20 @@
 
 -behavior(e2_task).
 
--export([start_link/2, reset/1, handle_task/1, handle_msg/3]).
+-export([start_link/1, start_link/2, reset/1]).
 
-start_link(Delay, Repeat) ->
-    e2_task:start_link(?MODULE, 1, [{delay, Delay}, {repeat, Repeat}]).
+-export([init/1, handle_task/1, handle_msg/3]).
+
+start_link({options, Options}) ->
+    e2_task:start_link(?MODULE, 1, Options);
+start_link({init, Timing}) ->
+    e2_task:start_link(?MODULE, {1, Timing}, []).
+
+start_link(Options, Timing) ->
+    e2_task:start_link(?MODULE, {1, Timing}, Options).
+
+init({N, Timing}) -> {ok, N, Timing};
+init(N) -> {ok, N}.
 
 reset(Task) ->
     e2_task:cast(Task, reset).
