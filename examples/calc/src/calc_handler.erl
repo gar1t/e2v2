@@ -34,7 +34,7 @@ handle_task(Socket) ->
                     gen_tcp:send(Socket, format_error(Err)),
                     gen_tcp:send(Socket, <<"\n">>)
             end,
-            {continue, Socket};
+            {repeat, Socket};
         {error, closed} ->
             {stop, normal};
         {error, Err} ->

@@ -22,7 +22,7 @@ reset(Task) ->
 
 handle_task(N) ->
     io:format(user, "~f - exec ~b~n", [timestamp(), N]),
-    {continue, N + 1}.
+    {repeat, N + 1}.
 
 handle_msg(reset, _From, _N) ->
     {reply, ok, 1}.

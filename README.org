@@ -441,3 +441,76 @@ It currently looks like this:
 
 How does this tie to the init result API? It should be consistent / make sense.
 
+** TODO Workers and result collections
+
+This is a pattern that we want to support: a coodinator starts a bunch of tasks
+that run in parallel and then collects the results.
+
+This should probably piggy back on task supervisors and tasks. We're just
+missing the result collection mechanism.
+
+Maybe a e2_worker behavior, which is a subtype of e2_task. The task however is
+allowed to return a value from handle_task.
+
+Then e2_worker_supervisor, which is used to start the workers and returns the
+results.
+
+A worker might look like this:
+
+#+begin_src erlang
+  -module(adder).
+
+  -behavior(e2_task).
+
+  -export([start_link/2, handle_task/1]).
+
+  start_link(X, Y) ->
+      e2_task:start_link(?MODULE, [X, Y]).
+
+  handle_task([X, Y]) ->
+      {reply, X + Y}.
+#+end_src
+
+The supervisor might look like this:
+
+#+begin_src erlang
+  -module(adder_sup).
+
+  -behavior(e2_task_supervisor).
+
+  -export([start_link/2, add/1]).
+
+  start_link() ->
+      e2_task_supervisor:start_link(?MODULE, adder).
+
+  add(Pairs) ->
+      {ok, Tasks} = e2_task_supervisor:start_tasks(Pairs),
+      e2_task_supervisor:wait_for_results(Tasks).
+#+end_src
+
+** TODO start_child support for e2_supervisor
+
+This is *big* missing feature!
+
+** DONE Task refactor
+
+The 'continue' signal from a task's handle_task callback should be changed:
+
+- It should more clearly indicate that the task will be repeated
+- We need to differentiate a "repeat" from a "keep running" signal
+
+Proposal:
+
+- Change 'continue' to 'repeat' - semmantics remain the same
+- Add 'wait' to indicate that the task should keep running, but not be repeated
+
+The "repeat" signal is clear.
+
+The term "wait" comes from the Erlang process state "waiting", which indicates
+that it's ready to receive messages. This is what we want to suggest.
+
+The motivation for this is to enable asynchronous tasks, which aren't possible
+under with just 'continue'.
+
+A wait reply should support an optional third element, which is a timeout value
+in milliseconds. This is just a pass through to the noreply result.

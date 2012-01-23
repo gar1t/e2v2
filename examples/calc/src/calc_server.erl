@@ -30,12 +30,12 @@ init(app_env) ->
     init(application:get_all_env());
 init(Options) ->
     {ok, Socket} = gen_tcp:listen(listen_port(Options), ?TCP_OPTIONS),
-    {ok, #state{socket=Socket}, accept}.
+    {ok, #state{socket=Socket}, {handle_msg, accept}}.
 
 handle_msg(accept, noreply, #state{socket=LSocket}=State) ->
     {ok, Socket} = gen_tcp:accept(LSocket),
     {ok, _} = calc_handler_sup:start_handler(Socket),
-    {noreply, State, accept}.
+    {noreply, State, {handle_msg, accept}}.
 
 %%%-------------------------------------------------------------------
 %%% Internal functions

@@ -107,7 +107,7 @@ handle_init_result({ok, ModState, Delay}, State) ->
 dispatch_handle_task(#state{mod=Module, mod_state=ModState}=State) ->
     handle_task_result(Module:handle_task(ModState), State).
 
-handle_task_result({continue, ModState}, State) ->
+handle_task_result({repeat, ModState}, State) ->
     case repeat_delay(State) of
         0 ->
             {noreply, set_mod_state(ModState, State), {handle_msg, '$task'}};
@@ -115,13 +115,17 @@ handle_task_result({continue, ModState}, State) ->
             erlang:send_after(Delay, self(), '$task'),
             {noreply, set_mod_state(ModState, State)}
     end;
-handle_task_result({continue, ModState, Delay}, State) ->
+handle_task_result({repeat, ModState, Delay}, State) ->
     erlang:send_after(Delay, self(), '$task'),
     {noreply, set_mod_state(ModState, State)};
 handle_task_result({stop, Reason}, State) ->
     {stop, Reason, State};
 handle_task_result({stop, Reason, ModState}, State) ->
     {stop, Reason, set_mod_state(ModState, State)};
+handle_task_result({wait, ModState}, State) ->
+    {noreply, set_mod_state(ModState, State)};
+handle_task_result({wait, ModState, Timeout}, State) ->
+    {noreply, set_mod_state(ModState, State), Timeout};
 handle_task_result({hibernate, ModState}, State) ->
     {noreply, set_mod_state(ModState, State), hibernate};
 handle_task_result(Other, _State) ->
