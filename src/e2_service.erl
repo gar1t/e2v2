@@ -33,14 +33,14 @@ start_link(Module, Args) ->
 start_link(Module, Args, Options) ->
     start_gen_server(server_name(Module, Options), Module, Args, Options).
 
-call(ServiceRef, Handler) ->
-    call(ServiceRef, Handler, infinity).
+call(ServiceRef, Msg) ->
+    call(ServiceRef, Msg, infinity).
 
-call(ServiceRef, Handler, Timeout) ->
-    gen_server:call(ServiceRef, {'$call', Handler}, Timeout).
+call(ServiceRef, Msg, Timeout) ->
+    gen_server:call(ServiceRef, {'$call', Msg}, Timeout).
 
-cast(ServiceRef, Handler) ->
-    gen_server:cast(ServiceRef, {'$cast', Handler}).
+cast(ServiceRef, Msg) ->
+    gen_server:cast(ServiceRef, {'$cast', Msg}).
 
 reply(Client, Reply) ->
     gen_server:reply(Client, Reply).
@@ -53,11 +53,11 @@ init({Module, Args}) ->
     maybe_trap_exit(Module),
     dispatch_init(Module, Args, init_state(Module)).
 
-handle_call({'$call', Handler}, From, State) ->
-    dispatch_call(Handler, From, State).
+handle_call({'$call', Msg}, From, State) ->
+    dispatch_call(Msg, From, State).
 
-handle_cast({'$cast', Handler}, State) ->
-    dispatch_cast(Handler, State);
+handle_cast({'$cast', Msg}, State) ->
+    dispatch_cast(Msg, State);
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
