@@ -403,10 +403,36 @@ But a basic logging facility should do more than cleanup distractingly poor
 module names. In addition to straight pass through of logging to error_logger,
 e2 logging should:
 
-- Support a compact format for logging
-- Make it trivial to plugin different handlers (e.g. syslog)
-- Otherwise keep it drop dead simple (i.e. avoid any log4j moments of
+- DONE Support a compact format for logging
+- TODO Make it trivial to plugin different handlers (e.g. syslog)
+- TODO Otherwise keep it drop dead simple (i.e. avoid any log4j moments of
   inspiration)
+
+The working API is very simple in that it combines messages and reports.
+
+In the way it's implemented, we've lost report types. This undermines the whole
+custom handler desgin of error_logger.
+
+E.g. these are not distinguishable:
+
+ e2_log:info("I got this: ~p", ["a message"])
+
+ e2_log:info(custom_log_type, {msg, "a message"})
+
+We could get very hacky here and prescribe that, for custom report types,
+the first arg must be an atom or a tuple, rather than an iolist.
+
+I suspect custom types and handlers are more edge cases and should fall behind
+API simplicity in priority.
+
+For now, we can keep the API as is and work types into it later, perpahs as a
+separate function.
+
+Also, the translated log events currently use both {error, Report} and
+{error_msg, {Format, Data}} formats -- the _msg variant being something that
+could leak through if someone uses error_logger directly (e2_log converts
+everything to reports). This needs to be cleaned up somehow.
+
 ** DONE Rethink "next message" pattern in e2_service
 
 We've morphed the optional timeout/hibernate tuple element for "next message"
