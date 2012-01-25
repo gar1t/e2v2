@@ -10,4 +10,4 @@ clean:
 	$(REBAR) clean
 
 shell: compile
-	ERL_LIBS=deps erl -pa ebin -s logger
+	ERL_LIBS=deps erl -pa ebin -s logger +W w
