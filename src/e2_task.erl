@@ -2,7 +2,7 @@
 
 -behavior(e2_service).
 
--export([start_link/2, start_link/3, run/1,
+-export([start_link/2, start_link/3, run_once/1,
          call/2, call/3, cast/2]).
 
 -export([init/1, handle_msg/3, terminate/2]).
@@ -24,8 +24,8 @@ start_link(Module, Args, Options) ->
     {ServiceOpts, TaskOpts} = e2_service_impl:split_options(Module, Options),
     e2_service:start_link(?MODULE, {Module, Args, TaskOpts}, ServiceOpts).
 
-run(Task) ->
-    e2_service:call(Task, '$task').
+run_once(Task) ->
+    e2_service:cast(Task, '$run').
 
 call(Task, Msg) ->
     e2_service:call(Task, Msg).
@@ -46,6 +46,8 @@ init({Module, Args, TaskOpts}) ->
 
 handle_msg('$task', noreply, State) ->
     dispatch_handle_task(set_start(State));
+handle_msg('$run', noreply, State) ->
+    dispatch_handle_run(State);
 handle_msg(Msg, From, #state{mod=Module, mod_state=ModState0}=State) ->
     {Result, ModState} =
         e2_service_impl:dispatch_handle_msg(Module, Msg, From, ModState0),
@@ -108,16 +110,9 @@ dispatch_handle_task(#state{mod=Module, mod_state=ModState}=State) ->
     handle_task_result(Module:handle_task(ModState), State).
 
 handle_task_result({repeat, ModState}, State) ->
-    case repeat_delay(State) of
-        0 ->
-            {noreply, set_mod_state(ModState, State), {handle_msg, '$task'}};
-        Delay ->
-            erlang:send_after(Delay, self(), '$task'),
-            {noreply, set_mod_state(ModState, State)}
-    end;
+    handle_task_repeat(repeat_delay(State), set_mod_state(ModState, State));
 handle_task_result({repeat, ModState, Delay}, State) ->
-    erlang:send_after(Delay, self(), '$task'),
-    {noreply, set_mod_state(ModState, State)};
+    handle_task_repeat(Delay, set_mod_state(ModState, State));
 handle_task_result({stop, Reason}, State) ->
     {stop, Reason, State};
 handle_task_result({stop, Reason, ModState}, State) ->
@@ -130,6 +125,32 @@ handle_task_result({hibernate, ModState}, State) ->
     {noreply, set_mod_state(ModState, State), hibernate};
 handle_task_result(Other, _State) ->
     exit({bad_return_value, Other}).
+
+handle_task_repeat(0, State) ->
+    {noreply, State, {handle_msg, '$task'}};
+handle_task_repeat(Delay, State) ->
+    erlang:send_after(Delay, self(), '$task'),
+    {noreply, State}.
+
+handle_run_result({repeat, ModState}, State) ->
+    {noreply, set_mod_state(ModState, State)};
+handle_run_result({repeat, ModState, _Delay}, State) ->
+    {noreply, set_mod_state(ModState, State)};
+handle_run_result({stop, Reason}, State) ->
+    {stop, Reason, State};
+handle_run_result({stop, Reason, ModState}, State) ->
+    {stop, Reason, set_mod_state(ModState, State)};
+handle_run_result({wait, ModState}, State) ->
+    {noreply, set_mod_state(ModState, State)};
+handle_run_result({wait, ModState, Timeout}, State) ->
+    {noreply, set_mod_state(ModState, State), Timeout};
+handle_run_result({hibernate, ModState}, State) ->
+    {noreply, set_mod_state(ModState, State), hibernate};
+handle_run_result(Other, _State) ->
+    exit({bad_return_value, Other}).
+
+dispatch_handle_run(#state{mod=Module, mod_state=ModState}=State) ->
+    handle_run_result(Module:handle_task(ModState), State).
 
 dispatch_terminate(Reason, #state{mod=Module, mod_state=ModState}) ->
     e2_service_impl:dispatch_terminate(Module, Reason, ModState).
