@@ -11,7 +11,7 @@
 
 behaviour_info(callbacks) -> [{handle_task, 1}].
 
--record(state, {mod, mod_state, start, repeat}).
+-record(state, {mod, mod_state, handle_msg, start, repeat}).
 
 %%%===================================================================
 %%% API
@@ -48,6 +48,8 @@ handle_msg('$task', noreply, State) ->
     dispatch_handle_task(set_start(State));
 handle_msg('$run', noreply, State) ->
     dispatch_handle_run(State);
+handle_msg(_Msg, _From, #state{handle_msg=false}=State) ->
+    {noreply, State};
 handle_msg(Msg, From, #state{mod=Module, mod_state=ModState0}=State) ->
     {Result, ModState} =
         e2_service_impl:dispatch_handle_msg(Module, Msg, From, ModState0),
@@ -61,7 +63,8 @@ terminate(Reason, State) ->
 %%%===================================================================
 
 init_state(Module) ->
-    #state{mod=Module}.
+    #state{mod=Module,
+           handle_msg=erlang:function_exported(Module, handle_msg, 3)}.
 
 dispatch_init(Module, Args, Options, State) ->
     handle_init_result(
@@ -117,9 +120,9 @@ handle_task_result({stop, Reason}, State) ->
     {stop, Reason, State};
 handle_task_result({stop, Reason, ModState}, State) ->
     {stop, Reason, set_mod_state(ModState, State)};
-handle_task_result({wait, ModState}, State) ->
+handle_task_result({wait_for_msg, ModState}, State) ->
     {noreply, set_mod_state(ModState, State)};
-handle_task_result({wait, ModState, Timeout}, State) ->
+handle_task_result({wait_for_msg, ModState, Timeout}, State) ->
     {noreply, set_mod_state(ModState, State), Timeout};
 handle_task_result({hibernate, ModState}, State) ->
     {noreply, set_mod_state(ModState, State), hibernate};
@@ -140,9 +143,9 @@ handle_run_result({stop, Reason}, State) ->
     {stop, Reason, State};
 handle_run_result({stop, Reason, ModState}, State) ->
     {stop, Reason, set_mod_state(ModState, State)};
-handle_run_result({wait, ModState}, State) ->
+handle_run_result({wait_for_msg, ModState}, State) ->
     {noreply, set_mod_state(ModState, State)};
-handle_run_result({wait, ModState, Timeout}, State) ->
+handle_run_result({wait_for_msg, ModState, Timeout}, State) ->
     {noreply, set_mod_state(ModState, State), Timeout};
 handle_run_result({hibernate, ModState}, State) ->
     {noreply, set_mod_state(ModState, State), hibernate};

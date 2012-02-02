@@ -540,3 +540,58 @@ under with just 'continue'.
 
 A wait reply should support an optional third element, which is a timeout value
 in milliseconds. This is just a pass through to the noreply result.
+** TODO Supervisor trees as data
+
+Why can't we just provide a declarative model for supervisors?
+
+#+begin_src erlang
+  [{service, calc_server},
+   {task_supervisor, calc_handler_sup, calc_handler},
+   {supervisor, fancy_logging_sup,
+    [{service, my_logger},
+     {service, another_logger}]}].
+#+end_src
+
+This would not require modules. In that case, applicable APIs could be provided
+by the e2 modules.
+
+Advantages:
+
+- Fewer modules, most of which are boilerplate
+- You can see the supervisory hierarchy in once place
+
+This could even be included in the .app file.
+
+This approach underscores the idea that supervisors are very and just follow
+recipes.
+** DONE Resolve Task API for waiting / handling messages
+
+What's best API for a task to signal that it wants to still run but not to
+repeat.
+
+  {wait, State}
+  {wait_for_msg, State}
+  {handle_messages, State}
+  {keep_running, State}
+
+The current tag is 'wait', which I'm inclined to keep. 'wait_for_msg' is also
+good.
+
+Resolves: using wait_for_msg.
+
+** TODO Resolve optional state element in return values
+
+In some cases (rare) a handler API does not require a state element
+(e.g. e2_task:handle_task/1).
+
+We need to either drop that -- i.e. always require a state element -- or make
+it optional everywhere.
+
+I'm inclined to require it:
+
+- It's consistent
+- It's explicit
+- Making it optional *everywhere* would add quite a few case/function clauses
+- There's very little cost in adding the state
+
+One could make the case that it should be optional in 'stop' results.
