@@ -9,7 +9,7 @@
 
 -module(e2_service_impl).
 
--export([split_options/2,
+-export([split_options/2, service_options/2,
          dispatch_init/2, init_result/2,
          dispatch_handle_msg/4, handle_msg_result/2,
          dispatch_terminate/3, set_trap_exit/1]).
@@ -20,6 +20,10 @@
 
 split_options(Module, Options) ->
     split_options(Module, Options, [], []).
+
+service_options(Module, Options) ->
+    {ServiceOpts, OtherOpts} = split_options(Module, Options),
+    ServiceOpts ++ OtherOpts.
 
 dispatch_init(Module, Args) ->
     case erlang:function_exported(Module, init, 1) of
