@@ -171,6 +171,8 @@ handle_cast_result({reply, _Reply, ModState, hibernate}, State) ->
     {noreply, set_mod_state(ModState, State), hibernate};
 handle_cast_result({stop, Reason, ModState}, State) ->
     {stop, Reason, set_mod_state(ModState, State)};
+handle_cast_result({stop, Reason, _Reply, ModState}, State) ->
+    {stop, Reason, set_mod_state(ModState, State)};
 handle_cast_result(Other, _State) ->
     exit({bad_return_value, Other}).
 
@@ -199,6 +201,8 @@ handle_info_result({reply, _Reply, ModState, {timeout, Timeout}}, State) ->
 handle_info_result({reply, _Reply, ModState, hibernate}, State) ->
     {noreply, set_mod_state(ModState, State), hibernate};
 handle_info_result({stop, Reason, ModState}, State) ->
+    {stop, Reason, set_mod_state(ModState, State)};
+handle_info_result({stop, Reason, _Reply, ModState}, State) ->
     {stop, Reason, set_mod_state(ModState, State)};
 handle_info_result(Other, _State) ->
     exit({bad_return_value, Other}).
