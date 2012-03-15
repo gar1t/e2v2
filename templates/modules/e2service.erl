@@ -4,7 +4,7 @@
 
 -export([start_link/0, ping/0]).
 
--export([init/1, handle_msg/3]).
+-export([init/1, handle_msg/3, terminate/2]).
 
 -record(state, {}).
 
@@ -27,6 +27,9 @@ init([]) ->
 
 handle_msg(ping, _From, State) ->
     {reply, pong, State}.
+
+terminate(_Reason, _State) ->
+    ok.
 
 %%%===================================================================
 %%% Internal functions
