@@ -1,0 +1,2 @@
+quick:
+	cd .. ; make quick

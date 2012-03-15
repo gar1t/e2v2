@@ -1,0 +1,13 @@
+%% -*- erlang -*-
+{variables, [{appid, "e2app"},
+             {dest, "{{appid}}"},
+             {version, "1"}]}.
+{dir, "{{dest}}"}.
+{template, "e2app_skel/src/e2app.app.src", "{{dest}}/src/{{appid}}.app.src"}.
+{template, "e2app_skel/src/e2app_app.erl", "{{dest}}/src/{{appid}}_app.erl"}.
+%{file, "../../.gitignore", "{{dest}}/.gitignore"}.
+%{file, "../../Makefile", "{{dest}}/Makefile"}.
+%{file, "e2app_skel/rebar.config", "{{dest}}/rebar.config"}.
+%{file, "../../rebar", "{{dest}}/rebar"}.
+%{chmod, 8#755, "{{dest}}/rebar"}.
+%{chmod, 8#755, "{{dest}}/start-dev.sh"}.

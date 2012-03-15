@@ -595,3 +595,54 @@ I'm inclined to require it:
 - There's very little cost in adding the state
 
 One could make the case that it should be optional in 'stop' results.
+** TODO e2_reg
+
+I *think* we want to include an e2 version of groc. I'd see this as a
+combination of two things:
+
+| e2_gproc | An exact copy of gproc     |
+| e2_reg   | A e2 interface to e2_gproc |
+
+The use cases we want to cover:
+
+- Publishing values for a process
+- Registering a process under a tag
+
+Perhaps an API like this:
+
+#+begin_src erlang
+  incr_value(Name) -> any()
+  incr_value(Name, Amount) -> any()
+  set_value(Name, Value) -> any()
+  register(Name) -> any()
+#+end_src
+
+e2_reg is debatable.
+
+** TODO e2_cache
+
+A very simple value cache with expiration.
+
+This can be used to guard against DoS vectors.
+** TODO handle_msg return fast support
+
+From Richard Carlson's recent Dos and Donts:
+
+Don't:
+
+  handle_call({find, X}, _From, State) ->
+      {reply, {ok, search_db(X)}, State}.
+
+Do:
+
+  handle_call({find, X}, _From, State) ->
+      proc_lib:spawn_link(
+          fun() -> gen_server:reply(From, {ok, search_db(X)}) end),
+      {noreply, State}.
+
+This is *great*. Could e2 highlight this as a pattern?
+
+  handle_msg({find, X}, _From, State) ->
+      {spawn_reply, fun() -> {ok, search_db(X)} end, State}.
+
+      *Yes!*

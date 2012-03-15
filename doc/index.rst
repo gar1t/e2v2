@@ -1,28 +1,21 @@
-=======================
-Reliable Software, Fast
-=======================
+============================
+Write better software faster
+============================
 
-`e2` is a productivity extension to the Erlang programming language, which
-allows you to build incredibly reliable software with very little effort.
+`e2` is a light weight Erlang library that lets you write better software with
+less time and effort.
 
+.. toctree::
+   :maxdepth: 1
 
-
-`e2` is an experimental project that aims to simplify Erlang/OTP development
-and improve developer productivity.
-
-e2 is very new -- but it is being used in production applications.
-
-:doc:`Click here to get started <getting_started>`
+   elevator
+   getting-started
+   erlang
 
 .. rubric:: Documentation
 
 .. toctree::
    :maxdepth: 1
 
+   applications
 
-.. rubric:: Other Pages
-
-.. toctree::
-   :maxdepth: 1
-
-   getting_started
