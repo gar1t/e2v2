@@ -16,7 +16,7 @@ start_link() ->
     e2_service:start_link(?MODULE, [], [registered]).
 
 ping() ->
-    e2_service:start_link(?MODULE, ping).
+    e2_service:call(?MODULE, ping).
 
 %%%===================================================================
 %%% Service callbacks

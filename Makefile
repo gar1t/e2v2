@@ -29,13 +29,11 @@ clean:
 	./rebar clean
 
 start=""
-shellopts=""
-
-shell:
+shell: compile
 ifeq ($(start), "")
-	 erl -pa ebin $(wildcard deps/*/ebin) $(shellopts)
+	erl -pa ebin $(wildcard deps/*/ebin) -s e2_reloader
 else
-	 erl -pa ebin $(wildcard deps/*/ebin) -s $(start) $(shellopts)
+	erl -pa ebin $(wildcard deps/*/ebin) -s $(start) -s e2_reloader
 endif
 
 appid=""
