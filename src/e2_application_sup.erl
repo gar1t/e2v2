@@ -18,7 +18,7 @@ init([AppMod, BaseOptions]) ->
             {ok, e2_supervisor:supervisor_spec(Children, BaseOptions)};
         {ok, Children, Options} ->
             {ok, e2_supervisor:supervisor_spec(
-                   Children, [Options|BaseOptions])};
+                   Children, Options ++ BaseOptions)};
         ignore ->
             ignore;
         Other ->
