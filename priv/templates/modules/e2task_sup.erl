@@ -2,7 +2,7 @@
 
 -behavior(e2_task_supervisor).
 
--export([start_link/0, start_task/0]).
+-export([start_link/0, start_{{task_module}}/0]).
 
 %%%===================================================================
 %%% Public API
