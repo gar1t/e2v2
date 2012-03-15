@@ -1,32 +1,34 @@
+rebar = ./rebar
+
 compile: deps
-	./rebar compile
+	$(rebar) compile
 
 quick:
-	./rebar compile skip_deps=true
+	$(rebar) compile skip_deps=true
 
 deps:
-	./rebar get-deps
+	$(rebar) get-deps
 
 refresh-deps:
-	./rebar delete-deps
-	./rebar get-deps
+	$(rebar) delete-deps
+	$(rebar) get-deps
 
 tests=""
 
 .PHONY: test
 test: compile
 ifeq ($(tests), "")
-	./rebar -j1 eunit
+	$(rebar) -j1 eunit
 else
-	./rebar -j1 eunit suite=$(tests)
+	$(rebar) -j1 eunit suite=$(tests)
 endif
 
 .PHONY: doc
 doc:
-	./rebar doc
+	$(rebar) doc
 
 clean:
-	./rebar clean
+	$(rebar) clean
 
 start=""
 shell: compile
@@ -49,12 +51,12 @@ env-module:
 	  echo "ERROR: module is required"; exit 1; fi
 
 new-project: env-appid env-appdir
-	@rebar create template=e2app appid=${appid} dest="${appdir}"
+	$(rebar) create template=e2app appid=${appid} dest="${appdir}"
 
 new-service: env-module
-	rebar create template=e2service module=${module} dest="$${appdir-.}"
+	$(rebar) create template=e2service module=${module} dest="$${appdir-.}" skip_deps=true
 	@echo "TODO: Add ${module} to a supervisor hierarchy (e.g. *_app file)"
 
 new-task: env-module
-	@rebar create template=e2task module=${module} dest="$${appdir-.}"
+	$(rebar) create template=e2task module=${module} dest="$${appdir-.}" skip_deps=true
 	@echo "TODO: Add ${module}_sup to a supervisor hierarchy (e.g. *_app file)"
