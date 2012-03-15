@@ -9,7 +9,5 @@
 %%%===================================================================
 
 init() ->
-    %% TODO: List top-level services and supervisors
-    %%
-    %%
-    [].
+    e2_log:info("TODO: configure top-level processes for your app"),
+    {ok, []}.

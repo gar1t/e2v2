@@ -4,6 +4,6 @@
   {vsn, "{{version}}"},
   {modules, []},
   {registered, []},
-  {mod, {e2_application, [{{appid}}]}},
+  {mod, {e2_application, [{{appid}}_app]}},
   {env, []},
   {applications, [kernel, stdlib]}]}.
