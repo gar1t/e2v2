@@ -9,5 +9,5 @@
 %%%===================================================================
 
 init() ->
-    e2_log:info("TODO: configure top-level processes for your app"),
+    e2_log:info("TODO: configure top-level processes for your app~n"),
     {ok, []}.

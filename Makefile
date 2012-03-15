@@ -36,36 +36,25 @@ else
 	erl -pa ebin $(wildcard deps/*/ebin) -s $(start) -s e2_reloader
 endif
 
-appid=""
+env-appid:
+	@if [ -z "${appid}" ]; then \
+	  echo "ERROR: appid is required"; exit 1; fi
 
-var-appid:
-ifeq ($(appid), "")
-	@echo "ERROR: appid is required"
-	@exit 1
-endif
+env-appdir:
+	@if [ -z "${appdir}" ]; then \
+	  echo "ERROR: appdir is required"; exit 1; fi
 
-appdir=""
+env-module:
+	@if [ -z "${module}" ]; then \
+	  echo "ERROR: module is required"; exit 1; fi
 
-var-appdir:
-ifeq ($(appdir), "")
-	@echo "ERROR: appdir is required"
-	@exit 1
-endif
+new-project: env-appid env-appdir
+	@rebar create template=e2app appid=${appid} dest="${appdir}"
 
-module=""
-var-module:
-ifeq ($(module), "")
-	@echo "ERROR: module is required"
-	@exit 1
-endif
+new-service: env-module
+	rebar create template=e2service module=${module} dest="$${appdir-.}"
+	@echo "TODO: Add ${module} to a supervisor hierarchy (e.g. *_app file)"
 
-new-project: var-appid var-appdir
-	rebar create template=e2app appid=$(appid) dest="$(appdir)"
-
-new-service: var-module
-ifeq ($(appdir), "")
-	rebar create template=e2service module=$(module) dest="."
-else
-	rebar create template=e2service module=$(module) dest="$(appdir)"
-endif
-	@echo "TODO: Add $(module) to a supervisor hierarchy (e.g. *_app file)"
+new-task: env-module
+	@rebar create template=e2task module=${module} dest="$${appdir-.}"
+	@echo "TODO: Add ${module}_sup to a supervisor hierarchy (e.g. *_app file)"

@@ -1,15 +1,10 @@
 -module({{appid}}).
 
--behavior(e2_application).
-
--export([init/0]).
+-export([start/0]).
 
 %%%===================================================================
-%%% e2_application callbacks
+%%% Public API
 %%%===================================================================
 
-init() ->
-    %% TODO: List top-level services and supervisors
-    %%
-    %%
-    [].
+start() ->
+    e2_application:start_with_dependencies({{appid}}).
